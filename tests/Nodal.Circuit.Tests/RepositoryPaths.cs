@@ -8,6 +8,8 @@ internal static class RepositoryPaths
 
     public static string ComponentsDirectory => Path.Combine(Root, "game", "content", "components");
 
+    public static string SymbolsDirectory => Path.Combine(Root, "game", "content", "symbols");
+
     private static string FindRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

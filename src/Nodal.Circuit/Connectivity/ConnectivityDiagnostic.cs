@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Nodal.Circuit.Geometry;
 using Nodal.Circuit.Schematics;
+using Nodal.Foundation.Collections;
 
 namespace Nodal.Circuit.Connectivity;
 
@@ -65,6 +66,25 @@ public sealed record ConnectivityDiagnostic(
             [],
             [],
             []);
+
+    public bool Equals(ConnectivityDiagnostic? other) =>
+        other is not null
+        && Severity == other.Severity
+        && Code == other.Code
+        && string.Equals(Message, other.Message, StringComparison.Ordinal)
+        && StructuralEquality.ItemsEqual(Components, other.Components)
+        && StructuralEquality.ItemsEqual(Wires, other.Wires)
+        && StructuralEquality.ItemsEqual(Pins, other.Pins)
+        && StructuralEquality.ItemsEqual(Positions, other.Positions);
+
+    public override int GetHashCode() => HashCode.Combine(
+        Severity,
+        Code,
+        Message,
+        StructuralEquality.ItemsHash(Components),
+        StructuralEquality.ItemsHash(Wires),
+        StructuralEquality.ItemsHash(Pins),
+        StructuralEquality.ItemsHash(Positions));
 
     public override string ToString() => $"{Severity} {Code}: {Message}";
 }

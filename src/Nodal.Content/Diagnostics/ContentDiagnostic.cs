@@ -6,5 +6,8 @@ public sealed record ContentDiagnostic(
     public static ContentDiagnostic Error(string sourceFile, string path, string message) =>
         new(ContentDiagnosticSeverity.Error, sourceFile, path, message);
 
+    public static ContentDiagnostic Warning(string sourceFile, string path, string message) =>
+        new(ContentDiagnosticSeverity.Warning, sourceFile, path, message);
+
     public override string ToString() => $"{Severity}: {SourceFile} {Path}: {Message}";
 }

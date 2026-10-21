@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "kind": "symbol",
+  "component": "voltage-source",
+  "style": "iec",
+  "primitives": [
+    { "type": "line", "from": [0, -2], "to": [0, -1] },
+    { "type": "circle", "center": [0, 0], "radius": 1 },
+    { "type": "line", "from": [0, -1], "to": [0, 1] },
+    { "type": "text", "at": [0.45, -0.5], "value": "+" },
+    { "type": "line", "from": [0, 1], "to": [0, 2] }
+  ],
+  "labels": { "designator": [2.2, -0.4], "value": [2.2, 0.4] }
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "kind": "symbol",
+  "component": "npn",
+  "style": "iec",
+  "primitives": [
+    { "type": "line", "from": [-2, 0], "to": [-1, 0] },
+    { "type": "line", "from": [-1, -0.8], "to": [-1, 0.8] },
+    { "type": "polyline", "points": [[-1, -0.4], [0, -1.2], [0, -2]], "closed": false },
+    { "type": "polyline", "points": [[-1, 0.4], [0, 1.2], [0, 2]], "closed": false },
+    { "type": "polygon", "points": [[-0.313, 0.95], [-0.775, 0.823], [-0.537, 0.527]], "filled": true }
+  ],
+  "labels": { "designator": [1.8, 0] }
+}
