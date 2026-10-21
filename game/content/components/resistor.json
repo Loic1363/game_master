@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "id": "resistor",
+  "name": "Resistor",
+  "description": "Linear two-terminal resistor.",
+  "category": "passive",
+  "designatorPrefix": "R",
+  "pins": [
+    { "name": "1", "x": -2, "y": 0 },
+    { "name": "2", "x": 2, "y": 0 }
+  ],
+  "parameters": [
+    { "name": "resistance", "unit": "ohm", "default": "1k", "series": "E24" }
+  ]
+}

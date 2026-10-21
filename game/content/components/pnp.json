@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "id": "pnp",
+  "name": "PNP transistor",
+  "description": "Bipolar PNP transistor whose base current controls a larger collector current.",
+  "category": "semiconductor",
+  "designatorPrefix": "Q",
+  "pins": [
+    { "name": "collector", "x": 0, "y": 2 },
+    { "name": "base", "x": -2, "y": 0 },
+    { "name": "emitter", "x": 0, "y": -2 }
+  ],
+  "parameters": []
+}

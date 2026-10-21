@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "id": "inductor",
+  "name": "Inductor",
+  "description": "Two-terminal inductor that stores energy in its magnetic field.",
+  "category": "passive",
+  "designatorPrefix": "L",
+  "pins": [
+    { "name": "1", "x": -2, "y": 0 },
+    { "name": "2", "x": 2, "y": 0 }
+  ],
+  "parameters": [
+    { "name": "inductance", "unit": "henry", "default": "10u", "series": "E12" }
+  ]
+}

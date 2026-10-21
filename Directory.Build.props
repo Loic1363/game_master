@@ -1,0 +1,22 @@
+<Project>
+
+  <PropertyGroup>
+    <NodalTargetFramework>net10.0</NodalTargetFramework>
+    <Version>0.0.1</Version>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <NodalCoreDirectory>$(MSBuildThisFileDirectory)src\</NodalCoreDirectory>
+    <NodalTestsDirectory>$(MSBuildThisFileDirectory)tests\</NodalTestsDirectory>
+    <NodalProjectIsCore>$(MSBuildProjectDirectory.StartsWith('$(NodalCoreDirectory)'))</NodalProjectIsCore>
+    <NodalProjectIsTest>$(MSBuildProjectDirectory.StartsWith('$(NodalTestsDirectory)'))</NodalProjectIsTest>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(NodalProjectIsCore)' == 'true' Or '$(NodalProjectIsTest)' == 'true'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "id": "nmos",
+  "name": "N-channel MOSFET",
+  "description": "Three-terminal N-channel MOSFET with the body tied to the source.",
+  "category": "semiconductor",
+  "designatorPrefix": "M",
+  "pins": [
+    { "name": "drain", "x": 0, "y": -2 },
+    { "name": "gate", "x": -2, "y": 0 },
+    { "name": "source", "x": 0, "y": 2 }
+  ],
+  "parameters": []
+}

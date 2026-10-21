@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "id": "voltage-source",
+  "name": "DC voltage source",
+  "description": "Ideal source that holds a constant voltage between its terminals.",
+  "category": "source",
+  "designatorPrefix": "V",
+  "pins": [
+    { "name": "plus", "x": 0, "y": -2 },
+    { "name": "minus", "x": 0, "y": 2 }
+  ],
+  "parameters": [
+    { "name": "voltage", "unit": "volt", "default": "5" }
+  ]
+}

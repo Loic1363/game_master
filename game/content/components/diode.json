@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "id": "diode",
+  "name": "Diode",
+  "description": "Two-terminal junction diode that conducts from anode to cathode.",
+  "category": "semiconductor",
+  "designatorPrefix": "D",
+  "pins": [
+    { "name": "anode", "x": -2, "y": 0 },
+    { "name": "cathode", "x": 2, "y": 0 }
+  ],
+  "parameters": []
+}

@@ -1,0 +1,41 @@
+* text=auto eol=lf
+
+*.cs text eol=lf diff=csharp
+*.csproj text eol=lf
+*.sln text eol=lf
+*.props text eol=lf
+*.targets text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+.editorconfig text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
+*.godot text eol=lf
+*.tscn text eol=lf
+*.tres text eol=lf
+*.gd text eol=lf
+*.cfg text eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.bmp binary
+*.ico binary
+*.webp binary
+*.svg text eol=lf
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.wav binary
+*.ogg binary
+*.mp3 binary
+*.flac binary
+*.pdf binary
+*.zip binary
+*.dll binary
+*.exe binary
+*.pck binary

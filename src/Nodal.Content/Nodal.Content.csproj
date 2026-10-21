@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(NodalTargetFramework)</TargetFramework>
+    <RootNamespace>Nodal.Content</RootNamespace>
+    <AssemblyName>Nodal.Content</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nodal.Foundation\Nodal.Foundation.csproj" />
+  </ItemGroup>
+
+</Project>

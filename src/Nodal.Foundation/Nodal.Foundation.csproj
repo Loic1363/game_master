@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(NodalTargetFramework)</TargetFramework>
+    <RootNamespace>Nodal.Foundation</RootNamespace>
+    <AssemblyName>Nodal.Foundation</AssemblyName>
+  </PropertyGroup>
+
+</Project>
