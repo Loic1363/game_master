@@ -11,6 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="..\src\Nodal.Content\Nodal.Content.csproj" />
     <ProjectReference Include="..\src\Nodal.Circuit\Nodal.Circuit.csproj" />
+    <ProjectReference Include="..\src\Nodal.Editor\Nodal.Editor.csproj" />
   </ItemGroup>
 
 </Project>

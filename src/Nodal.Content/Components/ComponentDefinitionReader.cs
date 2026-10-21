@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text.Json;
 using Nodal.Content.Diagnostics;
 using Nodal.Content.Sources;
@@ -165,7 +166,7 @@ internal sealed class ComponentDefinitionReader
         return string.Empty;
     }
 
-    private IReadOnlyList<PinDefinition> ReadPins(JsonElement root)
+    private ImmutableArray<PinDefinition> ReadPins(JsonElement root)
     {
         if (!TryGetField(root, JsonPath.Root, ComponentFields.Pins, JsonValueKind.Array, out var array))
         {
@@ -212,7 +213,7 @@ internal sealed class ComponentDefinitionReader
             : null;
     }
 
-    private IReadOnlyList<ParameterDefinition> ReadParameters(JsonElement root)
+    private ImmutableArray<ParameterDefinition> ReadParameters(JsonElement root)
     {
         if (!TryGetField(root, JsonPath.Root, ComponentFields.Parameters, JsonValueKind.Array, out var array))
         {
@@ -486,7 +487,7 @@ internal sealed class ComponentDefinitionReader
         }
     }
 
-    private IReadOnlyList<TItem> ReadElements<TItem>(
+    private ImmutableArray<TItem> ReadElements<TItem>(
         JsonElement array, string path, Func<JsonElement, string, TItem?> readItem)
         where TItem : class
     {
@@ -504,11 +505,11 @@ internal sealed class ComponentDefinitionReader
             }
         }
 
-        return items;
+        return [.. items];
     }
 
     private void RejectDuplicates<TItem, TKey>(
-        IReadOnlyList<TItem> items, string path, Func<TItem, TKey> keyOf, Func<TKey, string> describe)
+        ImmutableArray<TItem> items, string path, Func<TItem, TKey> keyOf, Func<TKey, string> describe)
         where TKey : notnull
     {
         foreach (var group in items.GroupBy(keyOf).Where(group => group.Count() > 1))

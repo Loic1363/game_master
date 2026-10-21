@@ -12,9 +12,9 @@ internal static class BaseSymbols
         var result = SymbolLibraryLoader.Load(
             new DirectoryContentSource(RepositoryPaths.SymbolsDirectory), BaseCatalog.Catalog);
 
-        return result.Diagnostics.Count == 0
+        return result.Diagnostics.Length == 0
             ? result.Library
             : throw new InvalidOperationException(
-                $"The base symbol library reported {result.Diagnostics.Count} diagnostics.");
+                $"The base symbol library reported {result.Diagnostics.Length} diagnostics.");
     }
 }

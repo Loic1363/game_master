@@ -51,7 +51,7 @@ public sealed class Schematic
             return false;
         }
 
-        var builder = ImmutableArray.CreateBuilder<PinPosition>(definition.Pins.Count);
+        var builder = ImmutableArray.CreateBuilder<PinPosition>(definition.Pins.Length);
 
         foreach (var pin in definition.Pins)
         {

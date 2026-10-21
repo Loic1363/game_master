@@ -23,6 +23,7 @@ Layers, bottom to top. A layer may only depend on layers below it.
 - Foundation (src/Nodal.Foundation): logging, units, math, IDs, events, profiling.
 - Content (src/Nodal.Content): loading and validating versioned data files.
 - Circuit (src/Nodal.Circuit): schematic model, undoable commands, schematic-to-netlist compilation.
+- Editor (src/Nodal.Editor): editing tools, editor session and wire routing, pure .NET.
 - Simulation, Characterization, Assembly (later).
 - Gameplay (later): game flow, objectives, progression, scoring.
 - Presentation (game/): Godot scenes and scripts only; adapters call into the core.

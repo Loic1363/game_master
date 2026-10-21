@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Nodal.Content.Symbols;
@@ -10,10 +11,12 @@ public sealed class SymbolLibrary
     {
         ArgumentNullException.ThrowIfNull(symbols);
 
-        Symbols = symbols
-            .OrderBy(symbol => symbol.ComponentId, StringComparer.Ordinal)
-            .ThenBy(symbol => symbol.Style)
-            .ToArray();
+        Symbols =
+        [
+            .. symbols
+                .OrderBy(symbol => symbol.ComponentId, StringComparer.Ordinal)
+                .ThenBy(symbol => symbol.Style),
+        ];
 
         foreach (var symbol in Symbols)
         {
@@ -28,9 +31,9 @@ public sealed class SymbolLibrary
 
     public static SymbolLibrary Empty { get; } = new([]);
 
-    public IReadOnlyList<Symbol> Symbols { get; }
+    public ImmutableArray<Symbol> Symbols { get; }
 
-    public int Count => Symbols.Count;
+    public int Count => Symbols.Length;
 
     public bool TryGet(string componentId, SymbolStyle style, [NotNullWhen(true)] out Symbol? symbol) =>
         _symbolByKey.TryGetValue((componentId, style), out symbol);

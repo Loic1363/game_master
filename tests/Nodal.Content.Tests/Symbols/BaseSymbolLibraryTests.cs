@@ -78,7 +78,7 @@ public class BaseSymbolLibraryTests
     {
         var symbol = SymbolOf(componentId);
 
-        Assert.Equal(DefinitionOf(componentId).Parameters.Count > 0, symbol.ValueAnchor is not null);
+        Assert.Equal(DefinitionOf(componentId).Parameters.Length > 0, symbol.ValueAnchor is not null);
     }
 
     private static IEnumerable<GridVector> Extremes(SymbolPrimitive primitive)

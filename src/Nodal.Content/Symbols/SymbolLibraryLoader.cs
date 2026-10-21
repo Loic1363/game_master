@@ -37,6 +37,18 @@ public static class SymbolLibraryLoader
                 continue;
             }
 
+            var expectedFileName = ExpectedFileName(symbol.ComponentId, symbol.Style);
+
+            if (!string.Equals(file.Name, expectedFileName, StringComparison.Ordinal))
+            {
+                diagnostics.Add(ContentDiagnostic.Error(
+                    file.Name,
+                    JsonPath.Root,
+                    "A symbol file must be named after its component and style, "
+                    + $"so this file must be named {expectedFileName}."));
+                continue;
+            }
+
             var key = (symbol.ComponentId, symbol.Style);
 
             if (sourceFileByKey.TryGetValue(key, out var owner))
@@ -67,7 +79,7 @@ public static class SymbolLibraryLoader
 
         diagnostics.AddRange(MissingSymbolWarnings(catalog, symbols));
 
-        return new SymbolLibraryLoadResult(new SymbolLibrary(symbols), diagnostics);
+        return new SymbolLibraryLoadResult(new SymbolLibrary(symbols), [.. diagnostics]);
     }
 
     private static IEnumerable<ContentDiagnostic> MissingSymbolWarnings(

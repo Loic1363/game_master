@@ -148,16 +148,65 @@ public class InvalidSymbolFileTests
     {
         var result = SymbolLibraryLoader.Load(
             new InMemoryContentSource(
-                new ContentFile("first.json", Gadget()),
-                new ContentFile("second.json", Gadget())),
+                new ContentFile(GoodFileName, Gadget()),
+                new ContentFile(GoodFileName, Gadget())),
             SymbolCatalogs.TwoPinParts);
 
         var error = Assert.Single(Errors(result));
 
-        Assert.Equal("second.json", error.SourceFile);
-        Assert.Contains("already defined by first.json", error.Message, StringComparison.Ordinal);
+        Assert.Equal(GoodFileName, error.SourceFile);
+        Assert.Contains($"already defined by {GoodFileName}", error.Message, StringComparison.Ordinal);
 
         Assert.Equal(["gadget"], result.Library.Symbols.Select(symbol => symbol.ComponentId));
+    }
+
+    [Theory]
+    [InlineData("gadget.json")]
+    [InlineData("gadget.ansi.json")]
+    [InlineData("Gadget.iec.json")]
+    [InlineData("widget.iec.json")]
+    [InlineData("symbols/gadget.iec.json")]
+    public void SymbolFileNameThatDoesNotMatchTheComponentAndStyleIsReported(string fileName)
+    {
+        var result = SymbolLibraryLoader.Load(
+            new InMemoryContentSource(new ContentFile(fileName, Gadget())),
+            SymbolCatalogs.TwoPinParts);
+
+        var error = Assert.Single(Errors(result));
+
+        Assert.Equal(fileName, error.SourceFile);
+        Assert.Equal("$", error.Path);
+        Assert.Contains("must be named gadget.iec.json", error.Message, StringComparison.Ordinal);
+
+        Assert.Equal(0, result.Library.Count);
+    }
+
+    [Fact]
+    public void AMisnamedSymbolDoesNotStopACorrectlyNamedOne()
+    {
+        var result = SymbolLibraryLoader.Load(
+            new InMemoryContentSource(
+                new ContentFile("copy of gadget.iec.json", Gadget()),
+                new ContentFile(GoodFileName, Gadget())),
+            SymbolCatalogs.TwoPinParts);
+
+        var error = Assert.Single(Errors(result));
+
+        Assert.Equal("copy of gadget.iec.json", error.SourceFile);
+        Assert.Equal(["gadget"], result.Library.Symbols.Select(symbol => symbol.ComponentId));
+    }
+
+    [Fact]
+    public void AnUnknownComponentIsReportedBeforeTheFileName()
+    {
+        var result = SymbolLibraryLoader.Load(
+            new InMemoryContentSource(new ContentFile("nowhere.json", Sprocket())),
+            SymbolCatalogs.TwoPinParts);
+
+        var error = Assert.Single(Errors(result));
+
+        Assert.Equal("$.component", error.Path);
+        Assert.Contains("No component carries the id 'sprocket'.", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -207,6 +256,9 @@ public class InvalidSymbolFileTests
 
     private static string Gadget() =>
         SymbolJson.Valid().With("component", Text("gadget")).ToString();
+
+    private static string Sprocket() =>
+        SymbolJson.Valid().With("component", Text("sprocket")).ToString();
 
     private static string Text(string value) => SymbolJson.Text(value);
 }

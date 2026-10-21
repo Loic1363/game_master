@@ -38,7 +38,7 @@ public static class NetlistCompiler
     private static ImmutableArray<PinConnection> Connections(
         ConnectivityResult connectivity, ComponentId id, ComponentDefinition definition)
     {
-        var connections = ImmutableArray.CreateBuilder<PinConnection>(definition.Pins.Count);
+        var connections = ImmutableArray.CreateBuilder<PinConnection>(definition.Pins.Length);
 
         foreach (var pin in definition.Pins)
         {

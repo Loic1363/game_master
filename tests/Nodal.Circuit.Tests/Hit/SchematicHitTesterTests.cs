@@ -3,6 +3,8 @@ using Nodal.Circuit.Schematics;
 using Nodal.Circuit.Tests.Connectivity;
 using Nodal.Foundation.Geometry;
 using Xunit;
+using Orientation = Nodal.Circuit.Geometry.Orientation;
+using Rotation = Nodal.Circuit.Geometry.Rotation;
 
 namespace Nodal.Circuit.Tests.Hit;
 
@@ -18,6 +20,7 @@ public class SchematicHitTesterTests
         Assert.NotNull(hit);
         Assert.Equal(new PinRef(ComponentId.First, "1"), hit.Pin);
         Assert.Null(hit.Wire);
+        Assert.Equal(ComponentId.First, hit.Component);
     }
 
     [Fact]
@@ -50,6 +53,7 @@ public class SchematicHitTesterTests
         Assert.NotNull(hit);
         Assert.Equal(WireId.First, hit.Wire);
         Assert.Null(hit.Pin);
+        Assert.Null(hit.Component);
         Assert.Equal(0.2, hit.Distance, 9);
     }
 
@@ -68,17 +72,32 @@ public class SchematicHitTesterTests
     }
 
     [Fact]
-    public void PinTakesPrecedenceOverANearbyWire()
+    public void PinTakesPrecedenceOverAWireAtTheSameDistance()
     {
         var schematic = Schematic.Empty
             .Add("resistor", 0, 0)
             .Wire(-2, 1, 5, 1);
 
-        var hit = Nearest(schematic, new GridVector(2, 0.9), 1);
+        var hit = Nearest(schematic, new GridVector(2, 0.5), 1);
 
         Assert.NotNull(hit);
         Assert.Equal(new PinRef(ComponentId.First, "2"), hit.Pin);
         Assert.Null(hit.Wire);
+    }
+
+    [Fact]
+    public void ACloserWireIsNotShadowedByAPinInsideTheTolerance()
+    {
+        var schematic = Schematic.Empty
+            .Add("resistor", 0, 0)
+            .Wire(-2, 1, 5, 1);
+
+        var hit = Nearest(schematic, new GridVector(2, 0.95), 1.5);
+
+        Assert.NotNull(hit);
+        Assert.Equal(WireId.First, hit.Wire);
+        Assert.Null(hit.Pin);
+        Assert.Equal(0.05, hit.Distance, 9);
     }
 
     [Fact]
@@ -127,6 +146,78 @@ public class SchematicHitTesterTests
             () => Nearest(Schematic.Empty, GridVector.Zero, -1));
     }
 
+    [Fact]
+    public void WithoutSymbolsNoBodyIsHit()
+    {
+        var schematic = Schematic.Empty.Add("resistor", 0, 0);
+
+        Assert.Null(Nearest(schematic, new GridVector(0, 0.2), 0.3));
+    }
+
+    [Fact]
+    public void BodyIsHitInsideTheTransformedSymbolExtent()
+    {
+        var schematic = Schematic.Empty.Add("resistor", 0, 0);
+
+        var hit = NearestWithSymbols(schematic, new GridVector(0, 0.2), 0.3);
+
+        Assert.NotNull(hit);
+        Assert.Equal(ComponentId.First, hit.Body);
+        Assert.Equal(ComponentId.First, hit.Component);
+        Assert.Null(hit.Pin);
+        Assert.Null(hit.Wire);
+        Assert.Equal(0, hit.Distance, 9);
+    }
+
+    [Fact]
+    public void BodyFollowsTheOrientation()
+    {
+        var schematic = Schematic.Empty
+            .Add("resistor", 0, 0, new Orientation(Rotation.R90, false));
+
+        Assert.NotNull(NearestWithSymbols(schematic, new GridVector(0.2, 0), 0.1));
+        Assert.Null(NearestWithSymbols(schematic, new GridVector(0.9, 0), 0.1));
+    }
+
+    [Fact]
+    public void APinBeatsTheBodyItBelongsTo()
+    {
+        var schematic = Schematic.Empty.Add("resistor", 0, 0);
+
+        var hit = NearestWithSymbols(schematic, new GridVector(-1.95, 0), 0.3);
+
+        Assert.NotNull(hit);
+        Assert.Equal(new PinRef(ComponentId.First, "1"), hit.Pin);
+        Assert.Null(hit.Body);
+    }
+
+    [Fact]
+    public void AWireBeatsABodyItCrosses()
+    {
+        var schematic = Schematic.Empty
+            .Add("resistor", 0, 0)
+            .Wire(-6, 0, -4, 0);
+
+        var hit = NearestWithSymbols(schematic, new GridVector(-5, 0.1), 0.3);
+
+        Assert.NotNull(hit);
+        Assert.Equal(WireId.First, hit.Wire);
+        Assert.Null(hit.Body);
+    }
+
+    [Fact]
+    public void BodyOutsideTheToleranceIsNotHit()
+    {
+        var schematic = Schematic.Empty.Add("resistor", 0, 0);
+
+        Assert.Null(NearestWithSymbols(schematic, new GridVector(0, 9), 0.3));
+    }
+
     private static SchematicHit? Nearest(Schematic schematic, GridVector point, double tolerance) =>
         SchematicHitTester.Nearest(schematic, BaseCatalog.Catalog, point, tolerance);
+
+    private static SchematicHit? NearestWithSymbols(
+        Schematic schematic, GridVector point, double tolerance) =>
+        SchematicHitTester.Nearest(
+            schematic, BaseCatalog.Catalog, BaseSymbols.Library, point, tolerance);
 }

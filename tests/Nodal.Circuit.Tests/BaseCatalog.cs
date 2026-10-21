@@ -12,9 +12,9 @@ internal static class BaseCatalog
         var result = ComponentCatalogLoader.Load(
             new DirectoryContentSource(RepositoryPaths.ComponentsDirectory));
 
-        return result.Diagnostics.Count == 0
+        return result.Diagnostics.Length == 0
             ? result.Catalog
             : throw new InvalidOperationException(
-                $"The base catalog reported {result.Diagnostics.Count} diagnostics.");
+                $"The base catalog reported {result.Diagnostics.Length} diagnostics.");
     }
 }

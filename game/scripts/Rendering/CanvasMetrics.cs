@@ -12,7 +12,9 @@ public static class CanvasMetrics
 
     public const float MinimumDotSpacing = 8f;
 
-    public const float HoverTolerancePixels = 6f;
+    public const float HoverTolerancePixels = 8f;
+
+    public const float GhostOpacity = 0.5f;
 
     public const float MinimumZoom = 0.25f;
 

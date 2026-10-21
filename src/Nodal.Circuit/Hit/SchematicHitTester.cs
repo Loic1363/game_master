@@ -1,6 +1,8 @@
 using Nodal.Circuit.Geometry;
 using Nodal.Circuit.Schematics;
+using Nodal.Circuit.Symbols;
 using Nodal.Content.Components;
+using Nodal.Content.Symbols;
 using Nodal.Foundation.Geometry;
 
 namespace Nodal.Circuit.Hit;
@@ -8,10 +10,19 @@ namespace Nodal.Circuit.Hit;
 public static class SchematicHitTester
 {
     public static SchematicHit? Nearest(
-        Schematic schematic, ComponentCatalog catalog, GridVector point, double tolerance)
+        Schematic schematic, ComponentCatalog catalog, GridVector point, double tolerance) =>
+        Nearest(schematic, catalog, SymbolLibrary.Empty, point, tolerance);
+
+    public static SchematicHit? Nearest(
+        Schematic schematic,
+        ComponentCatalog catalog,
+        SymbolLibrary symbols,
+        GridVector point,
+        double tolerance)
     {
         ArgumentNullException.ThrowIfNull(schematic);
         ArgumentNullException.ThrowIfNull(catalog);
+        ArgumentNullException.ThrowIfNull(symbols);
 
         if (!double.IsFinite(tolerance) || tolerance < 0)
         {
@@ -19,8 +30,20 @@ public static class SchematicHitTester
                 nameof(tolerance), tolerance, "A hit tolerance must be finite and not negative.");
         }
 
-        return NearestPin(schematic, catalog, point, tolerance)
-            ?? NearestWire(schematic, point, tolerance);
+        var pin = NearestPin(schematic, catalog, point, tolerance);
+        var wire = NearestWire(schematic, point, tolerance);
+
+        return Closest(pin, wire) ?? NearestBody(schematic, symbols, point, tolerance);
+    }
+
+    private static SchematicHit? Closest(SchematicHit? pin, SchematicHit? wire)
+    {
+        if (pin is null || wire is null)
+        {
+            return pin ?? wire;
+        }
+
+        return pin.Distance <= wire.Distance ? pin : wire;
     }
 
     private static SchematicHit? NearestPin(
@@ -41,7 +64,8 @@ public static class SchematicHitTester
 
                 if (distance <= tolerance && (nearest is null || distance < nearest.Distance))
                 {
-                    nearest = new SchematicHit(new PinRef(component.Id, pin.PinName), null, distance);
+                    nearest = new SchematicHit(
+                        new PinRef(component.Id, pin.PinName), null, null, distance);
                 }
             }
         }
@@ -59,12 +83,41 @@ public static class SchematicHitTester
 
             if (distance <= tolerance && (nearest is null || distance < nearest.Distance))
             {
-                nearest = new SchematicHit(null, wire.Id, distance);
+                nearest = new SchematicHit(null, wire.Id, null, distance);
             }
         }
 
         return nearest;
     }
+
+    private static SchematicHit? NearestBody(
+        Schematic schematic, SymbolLibrary symbols, GridVector point, double tolerance)
+    {
+        SchematicHit? nearest = null;
+
+        foreach (var component in schematic.Components.Values)
+        {
+            if (!symbols.TryGet(component.DefinitionId, SymbolStyle.Iec, out var symbol))
+            {
+                continue;
+            }
+
+            var box = BodyBox(symbol, component);
+            var distance = box.DistanceTo(point);
+
+            if (distance <= tolerance && (nearest is null || distance < nearest.Distance))
+            {
+                nearest = new SchematicHit(null, null, component.Id, distance);
+            }
+        }
+
+        return nearest;
+    }
+
+    private static GridBox BodyBox(Symbol symbol, ComponentInstance component) =>
+        SymbolExtent
+            .BoundingBox(SymbolTransform.Apply(symbol, component.Orientation))
+            .MovedBy(At(component.Position));
 
     private static double DistanceToSegment(GridVector point, GridVector start, GridVector end)
     {

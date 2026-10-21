@@ -25,7 +25,7 @@ public sealed class PinRefOrder : IComparer<PinRef>
                 continue;
             }
 
-            for (var index = 0; index < definition.Pins.Count; index++)
+            for (var index = 0; index < definition.Pins.Length; index++)
             {
                 builder[new PinRef(component.Id, definition.Pins[index].Name)] = index;
             }

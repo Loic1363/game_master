@@ -35,6 +35,6 @@ public static class ComponentCatalogLoader
             definitions.Add(definition);
         }
 
-        return new ComponentCatalogLoadResult(new ComponentCatalog(definitions), diagnostics);
+        return new ComponentCatalogLoadResult(new ComponentCatalog(definitions), [.. diagnostics]);
     }
 }

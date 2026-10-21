@@ -8,6 +8,7 @@ public class TestProjectLayeringTests
     [InlineData(TestProjects.Foundation)]
     [InlineData(TestProjects.Content)]
     [InlineData(TestProjects.Circuit)]
+    [InlineData(TestProjects.Editor)]
     [InlineData(TestProjects.Architecture)]
     public void TestProjectDeclaresNoGodotReference(string projectName)
     {
@@ -25,6 +26,7 @@ public class TestProjectLayeringTests
     [InlineData(TestProjects.Foundation)]
     [InlineData(TestProjects.Content)]
     [InlineData(TestProjects.Circuit)]
+    [InlineData(TestProjects.Editor)]
     [InlineData(TestProjects.Architecture)]
     public void TestProjectDeclaresOnlyAllowedNodalProjectReferences(string projectName)
     {
@@ -42,6 +44,7 @@ public class TestProjectLayeringTests
     [InlineData(TestProjects.Foundation)]
     [InlineData(TestProjects.Content)]
     [InlineData(TestProjects.Circuit)]
+    [InlineData(TestProjects.Editor)]
     [InlineData(TestProjects.Architecture)]
     public void TestProjectTargetsTheFrameworkPropertyDeclaredInDirectoryBuildProps(string projectName)
     {

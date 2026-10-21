@@ -24,7 +24,7 @@ public class BaseCatalogTests
         var result = LoadBaseCatalog();
 
         Assert.Empty(result.Diagnostics);
-        Assert.Equal(ExpectedDefinitionCount, result.Catalog.Definitions.Count);
+        Assert.Equal(ExpectedDefinitionCount, result.Catalog.Definitions.Length);
     }
 
     [Fact]
@@ -54,8 +54,8 @@ public class BaseCatalogTests
 
         Assert.Equal(category, definition.Category);
         Assert.Equal(designatorPrefix, definition.DesignatorPrefix);
-        Assert.Equal(pinCount, definition.Pins.Count);
-        Assert.Equal(parameterCount, definition.Parameters.Count);
+        Assert.Equal(pinCount, definition.Pins.Length);
+        Assert.Equal(parameterCount, definition.Parameters.Length);
         Assert.NotEmpty(definition.Name);
         Assert.NotEmpty(definition.Description);
     }

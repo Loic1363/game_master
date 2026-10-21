@@ -8,6 +8,7 @@ public class ProjectFileLayeringTests
     [InlineData(CoreLayers.Foundation)]
     [InlineData(CoreLayers.Content)]
     [InlineData(CoreLayers.Circuit)]
+    [InlineData(CoreLayers.Editor)]
     public void CoreProjectDeclaresNoGodotReference(string layerName)
     {
         var projectFile = RepositoryPaths.CoreProjectFile(layerName);
@@ -24,6 +25,7 @@ public class ProjectFileLayeringTests
     [InlineData(CoreLayers.Foundation)]
     [InlineData(CoreLayers.Content)]
     [InlineData(CoreLayers.Circuit)]
+    [InlineData(CoreLayers.Editor)]
     public void CoreProjectDeclaresOnlyAllowedNodalProjectReferences(string layerName)
     {
         var allowed = CoreLayers.AllowedNodalDependenciesOf(layerName);
@@ -40,6 +42,7 @@ public class ProjectFileLayeringTests
     [InlineData(CoreLayers.Foundation)]
     [InlineData(CoreLayers.Content)]
     [InlineData(CoreLayers.Circuit)]
+    [InlineData(CoreLayers.Editor)]
     public void CoreProjectDeclaresNoNonNodalProjectReference(string layerName)
     {
         var unexpected = ProjectFile.ProjectReferenceNames(RepositoryPaths.CoreProjectFile(layerName))

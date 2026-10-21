@@ -1,10 +1,18 @@
+using Nodal.Circuit.Geometry;
 using Nodal.Content.Symbols;
 using Nodal.Foundation.Geometry;
 
 namespace Nodal.Circuit.Symbols;
 
-internal static class SymbolExtent
+public static class SymbolExtent
 {
+    public static GridBox BoundingBox(Symbol symbol)
+    {
+        ArgumentNullException.ThrowIfNull(symbol);
+
+        return GridBox.Around(Corners(symbol));
+    }
+
     public static IEnumerable<GridVector> Corners(Symbol symbol)
     {
         foreach (var primitive in symbol.Primitives)
@@ -13,6 +21,14 @@ internal static class SymbolExtent
             {
                 yield return corner;
             }
+        }
+    }
+
+    public static IEnumerable<GridVector> CornersWithLabels(Symbol symbol)
+    {
+        foreach (var corner in Corners(symbol))
+        {
+            yield return corner;
         }
 
         yield return symbol.DesignatorAnchor;

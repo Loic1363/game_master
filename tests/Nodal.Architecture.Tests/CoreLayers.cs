@@ -5,12 +5,14 @@ internal static class CoreLayers
     public const string Foundation = "Nodal.Foundation";
     public const string Content = "Nodal.Content";
     public const string Circuit = "Nodal.Circuit";
+    public const string Editor = "Nodal.Editor";
 
     private static readonly Dictionary<string, string[]> AllowedNodalDependenciesByLayer = new()
     {
         [Foundation] = Array.Empty<string>(),
         [Content] = new[] { Foundation },
         [Circuit] = new[] { Foundation, Content },
+        [Editor] = new[] { Foundation, Content, Circuit },
     };
 
     public static IReadOnlyCollection<string> AllowedNodalDependenciesOf(string layerName) =>

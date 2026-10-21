@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Nodal.Content.Components;
 using Xunit;
 
@@ -5,7 +6,7 @@ namespace Nodal.Content.Tests.Components;
 
 public class ComponentCatalogTests
 {
-    private static readonly PinDefinition[] SinglePin = [new PinDefinition("1", 0, 0)];
+    private static readonly ImmutableArray<PinDefinition> SinglePin = [new PinDefinition("1", 0, 0)];
 
     [Fact]
     public void EmptyCatalogHoldsNoDefinition()

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Nodal.Content.Components;
@@ -10,9 +11,10 @@ public sealed class ComponentCatalog
     {
         ArgumentNullException.ThrowIfNull(definitions);
 
-        Definitions = definitions
-            .OrderBy(definition => definition.Id, StringComparer.Ordinal)
-            .ToArray();
+        Definitions =
+        [
+            .. definitions.OrderBy(definition => definition.Id, StringComparer.Ordinal),
+        ];
 
         _definitionById = new Dictionary<string, ComponentDefinition>(StringComparer.Ordinal);
 
@@ -27,7 +29,7 @@ public sealed class ComponentCatalog
 
     public static ComponentCatalog Empty { get; } = new([]);
 
-    public IReadOnlyList<ComponentDefinition> Definitions { get; }
+    public ImmutableArray<ComponentDefinition> Definitions { get; }
 
     public bool TryGetById(string id, [NotNullWhen(true)] out ComponentDefinition? definition) =>
         _definitionById.TryGetValue(id, out definition);

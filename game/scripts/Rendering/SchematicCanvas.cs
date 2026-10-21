@@ -1,11 +1,11 @@
 using Godot;
 using Nodal.Circuit.Connectivity;
-using Nodal.Circuit.Editing;
 using Nodal.Circuit.Geometry;
 using Nodal.Circuit.Hit;
 using Nodal.Circuit.Schematics;
 using Nodal.Circuit.Symbols;
 using Nodal.Content.Symbols;
+using Nodal.Editor;
 using Nodal.Foundation.Geometry;
 
 namespace Nodal.Game.Rendering;
@@ -14,16 +14,22 @@ public partial class SchematicCanvas : Control
 {
     private readonly CanvasCamera _camera = new();
 
-    private EditHistory? _history;
+    private EditorSession? _session;
     private SymbolLibrary _symbols = SymbolLibrary.Empty;
     private ConnectivityResult? _connectivity;
     private Net? _hoveredNet;
     private Font? _font;
+    private Vector2? _pointer;
     private bool _panning;
-    private bool _spaceHeld;
     private bool _fitted;
 
     public event Action<Net?>? HoveredNetChanged;
+
+    public event Action? ViewChanged;
+
+    public bool ShowGrid { get; set; } = true;
+
+    public bool PanModifierHeld { get; set; }
 
     private Font Font => _font ??= GetThemeDefaultFont();
 
@@ -34,13 +40,13 @@ public partial class SchematicCanvas : Control
         MouseExited += OnMouseExited;
     }
 
-    public void Display(EditHistory history, SymbolLibrary symbols, ConnectivityResult connectivity)
+    public void Display(EditorSession session, SymbolLibrary symbols, ConnectivityResult connectivity)
     {
-        ArgumentNullException.ThrowIfNull(history);
+        ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(symbols);
         ArgumentNullException.ThrowIfNull(connectivity);
 
-        _history = history;
+        _session = session;
         _symbols = symbols;
         _connectivity = connectivity;
         _hoveredNet = null;
@@ -50,34 +56,69 @@ public partial class SchematicCanvas : Control
         QueueRedraw();
     }
 
+    public void SetConnectivity(ConnectivityResult connectivity)
+    {
+        ArgumentNullException.ThrowIfNull(connectivity);
+
+        _connectivity = connectivity;
+        _hoveredNet = null;
+
+        RefreshPointer();
+        QueueRedraw();
+    }
+
     public void FitToSchematic()
     {
-        if (_history is null || Size.X <= 0 || Size.Y <= 0)
+        if (_session is null || Size.X <= 0 || Size.Y <= 0)
         {
             return;
         }
 
-        _camera.Fit(SchematicBounds.Of(_history.Schematic, _history.Catalog, _symbols), Size);
+        _camera.Fit(SchematicBounds.Of(_session.Schematic, _session.Catalog, _symbols), Size);
         _fitted = true;
 
-        QueueRedraw();
+        AfterCameraChanged();
+    }
+
+    public void ZoomAtCentre(float factor)
+    {
+        _camera.ZoomBy(factor, _pointer ?? (Size / 2f));
+
+        AfterCameraChanged();
+    }
+
+    public void PanModifierReleased()
+    {
+        if (_panning)
+        {
+            _panning = false;
+        }
     }
 
     public override void _Draw()
     {
         DrawRect(new Rect2(Vector2.Zero, Size), VisualTokens.Background);
-        DrawGridDots();
 
-        if (_history is null || _connectivity is null)
+        if (ShowGrid)
+        {
+            DrawGridDots();
+        }
+
+        if (_session is null)
         {
             return;
         }
 
-        DrawComponents(_history);
-        DrawWires(_history);
-        DrawJunctions(_connectivity);
-        DrawHoveredNet(_history);
-        DrawLabels(_history);
+        var view = _session.View;
+
+        DrawComponents(_session);
+        DrawWires(_session);
+        DrawJunctions();
+        DrawSelection(_session, view);
+        DrawHoveredNet(_session);
+        DrawGhost(view);
+        DrawWirePreview(view);
+        DrawLabels(_session);
     }
 
     public override void _GuiInput(InputEvent @event)
@@ -94,56 +135,38 @@ public partial class SchematicCanvas : Control
         }
     }
 
-    public override void _UnhandledKeyInput(InputEvent @event)
-    {
-        if (@event is not InputEventKey key)
-        {
-            return;
-        }
-
-        if (key.Keycode == Key.Space)
-        {
-            _spaceHeld = key.Pressed;
-
-            if (!key.Pressed)
-            {
-                _panning = false;
-            }
-
-            return;
-        }
-
-        if (key.Keycode == Key.Home && key.Pressed)
-        {
-            FitToSchematic();
-        }
-    }
-
     private void OnResized()
     {
         if (_fitted)
         {
-            QueueRedraw();
+            AfterCameraChanged();
             return;
         }
 
         FitToSchematic();
     }
 
-    private void OnMouseExited() => SetHoveredNet(null);
+    private void OnMouseExited()
+    {
+        _pointer = null;
+
+        SetHoveredNet(null);
+    }
 
     private void HandleButton(InputEventMouseButton button)
     {
+        _pointer = button.Position;
+
         switch (button.ButtonIndex)
         {
             case MouseButton.WheelUp when button.Pressed:
                 _camera.ZoomBy(CanvasMetrics.ZoomStep, button.Position);
-                QueueRedraw();
+                AfterCameraChanged();
                 break;
 
             case MouseButton.WheelDown when button.Pressed:
                 _camera.ZoomBy(1f / CanvasMetrics.ZoomStep, button.Position);
-                QueueRedraw();
+                AfterCameraChanged();
                 break;
 
             case MouseButton.Middle:
@@ -151,37 +174,112 @@ public partial class SchematicCanvas : Control
                 break;
 
             case MouseButton.Left:
-                _panning = button.Pressed && _spaceHeld;
+                HandleLeftButton(button);
+                break;
+
+            case MouseButton.Right when button.Pressed:
+                _session?.SecondaryPressed();
+                Report();
                 break;
         }
     }
 
+    private void HandleLeftButton(InputEventMouseButton button)
+    {
+        if (_session is null)
+        {
+            return;
+        }
+
+        if (button.Pressed && PanModifierHeld)
+        {
+            _panning = true;
+            return;
+        }
+
+        if (!button.Pressed && _panning)
+        {
+            _panning = false;
+            return;
+        }
+
+        UpdateTolerance();
+
+        if (button.Pressed)
+        {
+            _session.PrimaryPressed(_camera.ToGrid(button.Position));
+
+            if (button.DoubleClick)
+            {
+                _session.DoubleClicked();
+            }
+        }
+        else
+        {
+            _session.PrimaryReleased(_camera.ToGrid(button.Position));
+        }
+
+        Report();
+    }
+
     private void HandleMotion(InputEventMouseMotion motion)
     {
+        _pointer = motion.Position;
+
         if (_panning)
         {
             _camera.PanBy(motion.Relative);
-            QueueRedraw();
+            AfterCameraChanged();
 
             return;
         }
 
-        UpdateHoveredNet(motion.Position);
+        RefreshPointer();
     }
 
-    private void UpdateHoveredNet(Vector2 screenPosition)
+    private void AfterCameraChanged()
     {
-        if (_history is null)
+        RefreshPointer();
+        QueueRedraw();
+    }
+
+    private void RefreshPointer()
+    {
+        if (_session is null || _pointer is not { } position)
         {
             return;
         }
 
-        var tolerance = CanvasMetrics.HoverTolerancePixels / _camera.PixelsPerGridUnit;
+        UpdateTolerance();
+
+        _session.PointerMoved(_camera.ToGrid(position));
+
+        SetHoveredNet(NetUnder(position));
+        Report();
+    }
+
+    private void UpdateTolerance()
+    {
+        if (_session is not null)
+        {
+            _session.HitTolerance = CanvasMetrics.HoverTolerancePixels / _camera.PixelsPerGridUnit;
+        }
+    }
+
+    private Net? NetUnder(Vector2 position)
+    {
+        if (_session is null)
+        {
+            return null;
+        }
 
         var hit = SchematicHitTester.Nearest(
-            _history.Schematic, _history.Catalog, _camera.ToGrid(screenPosition), tolerance);
+            _session.Schematic,
+            _session.Catalog,
+            _camera.ToGrid(position),
+            CanvasMetrics.HoverTolerancePixels / _camera.PixelsPerGridUnit);
 
-        SetHoveredNet(NetOf(hit));
+        return NetOf(hit);
     }
 
     private Net? NetOf(SchematicHit? hit)
@@ -217,6 +315,12 @@ public partial class SchematicCanvas : Control
         QueueRedraw();
     }
 
+    private void Report()
+    {
+        ViewChanged?.Invoke();
+        QueueRedraw();
+    }
+
     private void DrawGridDots()
     {
         if (_camera.PixelsPerGridUnit < CanvasMetrics.MinimumDotSpacing)
@@ -239,9 +343,9 @@ public partial class SchematicCanvas : Control
         }
     }
 
-    private void DrawComponents(EditHistory history)
+    private void DrawComponents(EditorSession session)
     {
-        foreach (var component in history.Schematic.Components.Values)
+        foreach (var component in session.Schematic.Components.Values)
         {
             if (_symbols.TryGet(component.DefinitionId, SymbolStyle.Iec, out var symbol))
             {
@@ -257,9 +361,9 @@ public partial class SchematicCanvas : Control
         }
     }
 
-    private void DrawWires(EditHistory history)
+    private void DrawWires(EditorSession session)
     {
-        foreach (var wire in history.Schematic.Wires.Values)
+        foreach (var wire in session.Schematic.Wires.Values)
         {
             DrawWire(wire, VisualTokens.Stroke);
         }
@@ -268,16 +372,43 @@ public partial class SchematicCanvas : Control
     private void DrawWire(Wire wire, Color color) => DrawLine(
         _camera.ToScreen(wire.Start), _camera.ToScreen(wire.End), color, CanvasMetrics.StrokeWidth);
 
-    private void DrawJunctions(ConnectivityResult connectivity)
+    private void DrawJunctions()
     {
-        foreach (var junction in connectivity.Junctions)
+        if (_connectivity is null)
+        {
+            return;
+        }
+
+        foreach (var junction in _connectivity.Junctions)
         {
             DrawCircle(
                 _camera.ToScreen(junction), CanvasMetrics.JunctionRadius, VisualTokens.Stroke);
         }
     }
 
-    private void DrawHoveredNet(EditHistory history)
+    private void DrawSelection(EditorSession session, EditorView view)
+    {
+        if (view.Selection.Component is { } id
+            && session.Schematic.TryGetComponent(id, out var component)
+            && _symbols.TryGet(component.DefinitionId, SymbolStyle.Iec, out var symbol))
+        {
+            SymbolRenderer.Draw(
+                this,
+                Font,
+                _camera,
+                symbol,
+                component.Position,
+                component.Orientation,
+                VisualTokens.Selection);
+        }
+
+        if (view.Selection.Wire is { } wireId && session.Schematic.TryGetWire(wireId, out var wire))
+        {
+            DrawWire(wire, VisualTokens.Selection);
+        }
+    }
+
+    private void DrawHoveredNet(EditorSession session)
     {
         if (_hoveredNet is not { } net)
         {
@@ -286,7 +417,7 @@ public partial class SchematicCanvas : Control
 
         foreach (var id in net.Wires)
         {
-            if (history.Schematic.TryGetWire(id, out var wire))
+            if (session.Schematic.TryGetWire(id, out var wire))
             {
                 DrawWire(wire, VisualTokens.NetHighlight);
             }
@@ -294,13 +425,45 @@ public partial class SchematicCanvas : Control
 
         foreach (var pin in net.Pins)
         {
-            DrawPin(history, pin);
+            DrawPin(session, pin);
         }
     }
 
-    private void DrawPin(EditHistory history, PinRef pin)
+    private void DrawGhost(EditorView view)
     {
-        if (!history.Schematic.TryGetPinPositions(pin.ComponentId, history.Catalog, out var positions))
+        if (view.Ghost is not { } ghost
+            || !_symbols.TryGet(ghost.DefinitionId, SymbolStyle.Iec, out var symbol))
+        {
+            return;
+        }
+
+        var colour = VisualTokens.Selection;
+
+        SymbolRenderer.Draw(
+            this,
+            Font,
+            _camera,
+            symbol,
+            ghost.Position,
+            ghost.Orientation,
+            new Color(colour, CanvasMetrics.GhostOpacity));
+    }
+
+    private void DrawWirePreview(EditorView view)
+    {
+        foreach (var segment in view.WirePreview)
+        {
+            DrawLine(
+                _camera.ToScreen(segment.Start),
+                _camera.ToScreen(segment.End),
+                VisualTokens.Selection,
+                CanvasMetrics.StrokeWidth);
+        }
+    }
+
+    private void DrawPin(EditorSession session, PinRef pin)
+    {
+        if (!session.Schematic.TryGetPinPositions(pin.ComponentId, session.Catalog, out var positions))
         {
             return;
         }
@@ -317,11 +480,11 @@ public partial class SchematicCanvas : Control
         }
     }
 
-    private void DrawLabels(EditHistory history)
+    private void DrawLabels(EditorSession session)
     {
         var fontSize = CanvasText.FontSize(_camera.Zoom);
 
-        foreach (var component in history.Schematic.Components.Values)
+        foreach (var component in session.Schematic.Components.Values)
         {
             if (!_symbols.TryGet(component.DefinitionId, SymbolStyle.Iec, out var symbol))
             {
@@ -338,7 +501,7 @@ public partial class SchematicCanvas : Control
                 fontSize,
                 VisualTokens.LabelText);
 
-            if (placed.ValueAnchor is { } anchor && FirstValue(history, component) is { } value)
+            if (placed.ValueAnchor is { } anchor && FirstValue(session, component) is { } value)
             {
                 CanvasText.DrawCentered(
                     this, Font, Screen(component.Position, anchor), value, fontSize, VisualTokens.LabelText);
@@ -346,10 +509,10 @@ public partial class SchematicCanvas : Control
         }
     }
 
-    private static string? FirstValue(EditHistory history, ComponentInstance component)
+    private static string? FirstValue(EditorSession session, ComponentInstance component)
     {
-        if (!history.Catalog.TryGetById(component.DefinitionId, out var definition)
-            || definition.Parameters.Count == 0)
+        if (!session.Catalog.TryGetById(component.DefinitionId, out var definition)
+            || definition.Parameters.Length == 0)
         {
             return null;
         }

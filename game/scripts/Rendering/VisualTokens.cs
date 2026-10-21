@@ -13,4 +13,6 @@ public static class VisualTokens
     public static Color LabelText { get; } = Color.FromHtml("4A4A4A");
 
     public static Color NetHighlight { get; } = Color.FromHtml("E07A1F");
+
+    public static Color Selection { get; } = Color.FromHtml("2F6FDE");
 }

@@ -10,6 +10,7 @@ Bottom to top. A layer may only depend on layers below it. Nothing reaches upwar
 | Foundation | `src/Nodal.Foundation` | Logging, physical units, math, identifiers, events, profiling. |
 | Content | `src/Nodal.Content` | Loading and validating versioned data files. |
 | Circuit | `src/Nodal.Circuit` | Schematic model, undoable commands, schematic-to-netlist compilation. |
+| Editor | `src/Nodal.Editor` | Editing tools, editor session and wire routing, pure .NET. |
 | Simulation | later | Numerical solver driven by a netlist. |
 | Characterization | later | Measuring a validated circuit so it can become a reusable chip. |
 | Assembly | later | Assembler and machine model for player-built CPUs. |
@@ -30,6 +31,9 @@ assemblies and the project files, so an unused reference cannot slip through.
   waveforms. The UI never blocks on the solver, and the solver never touches scene nodes.
 - **Every editor action is an undoable command.** Placing a component, moving a wire and editing
   a value are all commands with an inverse.
+- **Editor interaction is engine-free.** The tool state machine, the editor session and wire
+  routing live in `src/Nodal.Editor`, so every transition is unit-testable without Godot. The
+  Godot layer only converts input events into grid coordinates and draws what the session reports.
 - **Files are versioned, Git-friendly text.** JSON with an explicit schema version, so saves
   diff cleanly and old files can be migrated.
 - **Components are data, not code.** Adding a resistor family or a new transistor is a data file,
