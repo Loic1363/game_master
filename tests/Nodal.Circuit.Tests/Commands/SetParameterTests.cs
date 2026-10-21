@@ -21,6 +21,37 @@ public class SetParameterTests
     }
 
     [Fact]
+    public void SettingTheValueItAlreadyHasReturnsTheSameSchematic()
+    {
+        var schematic = Resistor(out var id);
+
+        var updated = new SetParameter(id, "resistance", new Quantity(1000, Unit.Ohm))
+            .Succeed(schematic);
+
+        Assert.Same(schematic, updated);
+    }
+
+    [Fact]
+    public void SettingTheValueItAlreadyHasStillDescribesTheEdit()
+    {
+        var schematic = Resistor(out var id);
+        var command = new SetParameter(id, "resistance", new Quantity(1000, Unit.Ohm));
+
+        Assert.Equal($"Set R1 resistance to 1 k{UnitSymbols.Ohm}", command.DescriptionOf(schematic));
+    }
+
+    [Fact]
+    public void AnInvalidUnitStillFailsRatherThanCountingAsANoOp()
+    {
+        var schematic = Resistor(out var id);
+
+        var error = new SetParameter(id, "resistance", new Quantity(1000, Unit.Farad))
+            .Reject(schematic);
+
+        Assert.Equal(EditErrorCode.UnitMismatch, error.Code);
+    }
+
+    [Fact]
     public void SettingAValueLeavesTheRestOfTheComponentAlone()
     {
         var schematic = Resistor(out var id);

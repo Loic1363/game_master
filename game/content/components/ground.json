@@ -7,7 +7,7 @@
   "category": "reference",
   "designatorPrefix": "GND",
   "pins": [
-    { "name": "gnd", "x": 0, "y": 0 }
+    { "name": "gnd", "x": 0, "y": 0, "globalNet": "0" }
   ],
   "parameters": []
 }

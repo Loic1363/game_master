@@ -205,8 +205,11 @@ internal sealed class ComponentDefinitionReader
         var name = ReadRequiredText(element, path, ComponentFields.Name);
         var hasX = TryReadInteger(element, path, ComponentFields.X, out var x);
         var hasY = TryReadInteger(element, path, ComponentFields.Y, out var y);
+        var hasGlobalNet = TryReadGlobalNet(element, path, out var globalNet);
 
-        return name.Length > 0 && hasX && hasY ? new PinDefinition(name, x, y) : null;
+        return name.Length > 0 && hasX && hasY && hasGlobalNet
+            ? new PinDefinition(name, x, y, globalNet)
+            : null;
     }
 
     private IReadOnlyList<ParameterDefinition> ReadParameters(JsonElement root)
@@ -312,6 +315,41 @@ internal sealed class ComponentDefinitionReader
         Reject(
             JsonPath.Field(path, ComponentFields.Default),
             $"'{text}' is not a valid value for this unit ({error}).");
+
+        return false;
+    }
+
+    private bool TryReadGlobalNet(JsonElement element, string path, out string? globalNet)
+    {
+        globalNet = null;
+
+        if (!element.TryGetProperty(ComponentFields.GlobalNet, out var field))
+        {
+            return true;
+        }
+
+        if (field.ValueKind != JsonValueKind.String)
+        {
+            Reject(
+                JsonPath.Field(path, ComponentFields.GlobalNet),
+                $"Field '{ComponentFields.GlobalNet}' must be {JsonValueKindNames.Of(JsonValueKind.String)}.");
+
+            return false;
+        }
+
+        var name = field.GetString() ?? string.Empty;
+
+        if (ComponentNameRules.IsGlobalNetName(name))
+        {
+            globalNet = name;
+            return true;
+        }
+
+        Reject(
+            JsonPath.Field(path, ComponentFields.GlobalNet),
+            $"'{name}' is not a valid global net name. A global net name starts with an uppercase " +
+            $"letter followed by uppercase letters, digits or underscores, or is exactly " +
+            $"'{ComponentNameRules.GroundNetName}'.");
 
         return false;
     }

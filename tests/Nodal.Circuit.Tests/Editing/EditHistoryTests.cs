@@ -178,6 +178,80 @@ public class EditHistoryTests
     }
 
     [Fact]
+    public void ANoOpEditRecordsNothingAndKeepsTheRedoStack()
+    {
+        var history = NewHistory();
+        history.Execute(AddResistor());
+        var added = history.Schematic;
+        history.Execute(new MoveComponent(ComponentId.First, new GridPoint(5, 5)));
+        history.Undo();
+
+        var result = history.Execute(new MoveComponent(ComponentId.First, GridPoint.Origin));
+
+        Assert.True(result.Succeeded);
+        Assert.Same(added, history.Schematic);
+        Assert.Equal("Add R1", history.UndoDescription);
+        Assert.True(history.CanRedo);
+        Assert.Equal("Move R1", history.RedoDescription);
+    }
+
+    [Fact]
+    public void ANoOpEditDoesNotRaiseChanged()
+    {
+        var history = NewHistory();
+        history.Execute(AddResistor());
+        var raised = 0;
+        history.Changed += () => raised++;
+
+        history.Execute(new MoveComponent(ComponentId.First, GridPoint.Origin));
+        history.Execute(new SetParameter(ComponentId.First, "resistance", new Quantity(1000, Unit.Ohm)));
+
+        Assert.Equal(0, raised);
+    }
+
+    [Fact]
+    public void ANoOpParameterEditRecordsNothing()
+    {
+        var history = NewHistory();
+        history.Execute(AddResistor());
+
+        history.Execute(new SetParameter(ComponentId.First, "resistance", new Quantity(1000, Unit.Ohm)));
+
+        Assert.Equal("Add R1", history.UndoDescription);
+        history.Undo();
+        Assert.False(history.CanUndo);
+    }
+
+    [Fact]
+    public void ACompositeOfNoOpsRecordsNothing()
+    {
+        var history = NewHistory();
+        history.Execute(AddResistor());
+        var raised = 0;
+        history.Changed += () => raised++;
+
+        var result = history.Execute(new CompositeCommand("Settle", [
+            new MoveComponent(ComponentId.First, GridPoint.Origin),
+            new SetParameter(ComponentId.First, "resistance", new Quantity(1000, Unit.Ohm)),
+        ]));
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(0, raised);
+        Assert.Equal("Add R1", history.UndoDescription);
+    }
+
+    [Fact]
+    public void AnEmptyCompositeRecordsNothing()
+    {
+        var history = NewHistory();
+
+        var result = history.Execute(new CompositeCommand("Do nothing", []));
+
+        Assert.True(result.Succeeded);
+        Assert.False(history.CanUndo);
+    }
+
+    [Fact]
     public void ChangedIsRaisedOncePerSuccessfulExecute()
     {
         var history = NewHistory();

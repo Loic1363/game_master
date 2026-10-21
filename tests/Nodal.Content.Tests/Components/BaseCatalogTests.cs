@@ -105,7 +105,9 @@ public class BaseCatalogTests
 
         var pin = Assert.Single(definition.Pins, candidate => candidate.Name == pinName);
 
-        Assert.Equal(new PinDefinition(pinName, x, y), pin);
+        Assert.Equal(pinName, pin.Name);
+        Assert.Equal(x, pin.X);
+        Assert.Equal(y, pin.Y);
     }
 
     [Fact]

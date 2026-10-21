@@ -21,14 +21,21 @@ public class MoveComponentTests
     }
 
     [Fact]
-    public void MovingToTheSamePositionIsStillASuccess()
+    public void MovingToTheSamePositionReturnsTheSameSchematic()
     {
         var schematic = Placed(out var id);
 
         var moved = new MoveComponent(id, new GridPoint(3, 4)).Succeed(schematic);
 
-        Assert.True(moved.TryGetComponent(id, out var component));
-        Assert.Equal(new GridPoint(3, 4), component.Position);
+        Assert.Same(schematic, moved);
+    }
+
+    [Fact]
+    public void MovingToTheSamePositionStillDescribesTheEdit()
+    {
+        var schematic = Placed(out var id);
+
+        Assert.Equal("Move R1", new MoveComponent(id, new GridPoint(3, 4)).DescriptionOf(schematic));
     }
 
     [Fact]

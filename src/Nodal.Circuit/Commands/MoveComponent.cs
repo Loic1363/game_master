@@ -16,9 +16,15 @@ public sealed record MoveComponent(ComponentId Id, GridPoint Position) : IEditCo
             return EditFailures.UnknownComponent(Id);
         }
 
+        var description = $"Move {component.Designator}";
+
+        if (component.Position == Position)
+        {
+            return CommandResult.Success(schematic, description);
+        }
+
         var moved = component with { Position = Position };
 
-        return CommandResult.Success(
-            schematic.WithUpdatedComponent(moved), $"Move {component.Designator}");
+        return CommandResult.Success(schematic.WithUpdatedComponent(moved), description);
     }
 }

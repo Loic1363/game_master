@@ -46,11 +46,16 @@ public sealed record SetParameter(ComponentId Id, string ParameterName, Quantity
                 $"{Value} does not belong to series {series}.");
         }
 
+        var description = $"Set {component.Designator} {parameter.Name} to {Value}";
+
+        if (component.Parameters.TryGetValue(parameter.Name, out var current) && current == Value)
+        {
+            return CommandResult.Success(schematic, description);
+        }
+
         var updated = component with { Parameters = component.Parameters.SetItem(parameter.Name, Value) };
 
-        return CommandResult.Success(
-            schematic.WithUpdatedComponent(updated),
-            $"Set {component.Designator} {parameter.Name} to {Value}");
+        return CommandResult.Success(schematic.WithUpdatedComponent(updated), description);
     }
 
     private static bool BelongsToSeries(StandardSeries series, double value) =>

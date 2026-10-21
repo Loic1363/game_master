@@ -38,7 +38,7 @@ public sealed class EditHistory
 
         var result = command.Apply(Schematic, Catalog);
 
-        if (!result.Succeeded)
+        if (!result.Succeeded || ReferenceEquals(result.Schematic, Schematic))
         {
             return result;
         }
