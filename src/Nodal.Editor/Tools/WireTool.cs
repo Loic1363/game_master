@@ -58,6 +58,8 @@ internal sealed class WireTool : IEditorTool
     {
     }
 
+    public bool SecondaryPressed(GridVector point) => false;
+
     public void DoubleClicked() => _start = null;
 
     public bool Cancel()

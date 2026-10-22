@@ -10,6 +10,9 @@ internal static class RepositoryPaths
 
     public static string SymbolsDirectory => Path.Combine(Root, "game", "content", "symbols");
 
+    public static string PersistenceDirectory =>
+        Path.Combine(Root, "tests", "Nodal.Circuit.Tests", "Persistence");
+
     private static string FindRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

@@ -113,6 +113,7 @@ public partial class SchematicCanvas : Control
 
         DrawComponents(_session);
         DrawWires(_session);
+        DrawDanglingEnds();
         DrawJunctions();
         DrawSelection(_session, view);
         DrawHoveredNet(_session);
@@ -178,7 +179,8 @@ public partial class SchematicCanvas : Control
                 break;
 
             case MouseButton.Right when button.Pressed:
-                _session?.SecondaryPressed();
+                UpdateTolerance();
+                _session?.SecondaryPressed(_camera.ToGrid(button.Position));
                 Report();
                 break;
         }
@@ -263,6 +265,7 @@ public partial class SchematicCanvas : Control
         if (_session is not null)
         {
             _session.HitTolerance = CanvasMetrics.HoverTolerancePixels / _camera.PixelsPerGridUnit;
+            _session.DragThreshold = CanvasMetrics.DragThresholdPixels / _camera.PixelsPerGridUnit;
         }
     }
 
@@ -371,6 +374,35 @@ public partial class SchematicCanvas : Control
 
     private void DrawWire(Wire wire, Color color) => DrawLine(
         _camera.ToScreen(wire.Start), _camera.ToScreen(wire.End), color, CanvasMetrics.StrokeWidth);
+
+    private void DrawDanglingEnds()
+    {
+        if (_connectivity is null)
+        {
+            return;
+        }
+
+        var side = CanvasMetrics.DanglingEndSizePixels;
+
+        foreach (var diagnostic in _connectivity.Diagnostics)
+        {
+            if (diagnostic.Code != ConnectivityDiagnosticCode.DanglingWireEnd)
+            {
+                continue;
+            }
+
+            foreach (var position in diagnostic.Positions)
+            {
+                var center = _camera.ToScreen(position);
+
+                DrawRect(
+                    new Rect2(center - (Vector2.One * (side / 2f)), new Vector2(side, side)),
+                    VisualTokens.Stroke,
+                    filled: false,
+                    CanvasMetrics.StrokeWidth);
+            }
+        }
+    }
 
     private void DrawJunctions()
     {
@@ -491,35 +523,42 @@ public partial class SchematicCanvas : Control
                 continue;
             }
 
-            var placed = SymbolTransform.Apply(symbol, component.Orientation);
+            var layout = LabelPlacement.Of(symbol, component.Orientation);
 
-            CanvasText.DrawCentered(
-                this,
-                Font,
-                Screen(component.Position, placed.DesignatorAnchor),
-                component.Designator,
-                fontSize,
-                VisualTokens.LabelText);
+            DrawLabel(component.Position, layout.Designator, component.Designator, fontSize);
 
-            if (placed.ValueAnchor is { } anchor && FirstValue(session, component) is { } value)
+            if (FirstValue(session, component) is { } value)
             {
-                CanvasText.DrawCentered(
-                    this, Font, Screen(component.Position, anchor), value, fontSize, VisualTokens.LabelText);
+                DrawLabel(component.Position, layout.Value, value, fontSize);
             }
         }
     }
 
+    private void DrawLabel(GridPoint position, LabelAnchor anchor, string text, int fontSize) =>
+        CanvasText.DrawAligned(
+            this,
+            Font,
+            Screen(position, anchor.Position),
+            anchor.Alignment,
+            text,
+            fontSize,
+            VisualTokens.LabelText);
+
     private static string? FirstValue(EditorSession session, ComponentInstance component)
     {
-        if (!session.Catalog.TryGetById(component.DefinitionId, out var definition)
-            || definition.Parameters.Length == 0)
+        if (!session.Catalog.TryGetById(component.DefinitionId, out var definition))
         {
             return null;
         }
 
-        var first = definition.Parameters[0];
+        var required = definition.Parameters.FirstOrDefault(parameter => parameter.IsRequired);
 
-        return component.Parameters.TryGetValue(first.Name, out var quantity)
+        if (required is null)
+        {
+            return null;
+        }
+
+        return component.Parameters.TryGetValue(required.Name, out var quantity)
             ? quantity.ToString()
             : null;
     }

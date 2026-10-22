@@ -10,12 +10,15 @@ internal static class Sessions
 {
     public const double Tolerance = 0.4;
 
+    public const double DragThreshold = 0.25;
+
     public static EditorSession Empty() => Of(Schematic.Empty);
 
     public static EditorSession Of(Schematic schematic) =>
         new(new EditHistory(schematic, BaseContent.Catalog), BaseContent.Symbols)
         {
             HitTolerance = Tolerance,
+            DragThreshold = DragThreshold,
         };
 
     public static Schematic Add(this Schematic schematic, string definitionId, int x, int y) =>
@@ -28,6 +31,14 @@ internal static class Sessions
     {
         session.PrimaryPressed(new GridVector(x, y));
         session.PrimaryReleased(new GridVector(x, y));
+    }
+
+    public static void DragFrom(
+        this EditorSession session, double fromX, double fromY, double toX, double toY)
+    {
+        session.PrimaryPressed(new GridVector(fromX, fromY));
+        session.PointerMoved(new GridVector(toX, toY));
+        session.PrimaryReleased(new GridVector(toX, toY));
     }
 
     public static ComponentInstance Component(this EditorSession session, int id)

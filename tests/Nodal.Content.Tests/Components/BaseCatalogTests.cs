@@ -36,16 +36,16 @@ public class BaseCatalogTests
     }
 
     [Theory]
-    [InlineData("resistor", ComponentCategory.Passive, "R", 2, 1)]
-    [InlineData("capacitor", ComponentCategory.Passive, "C", 2, 1)]
-    [InlineData("inductor", ComponentCategory.Passive, "L", 2, 1)]
+    [InlineData("resistor", ComponentCategory.Passive, "R", 2, 2)]
+    [InlineData("capacitor", ComponentCategory.Passive, "C", 2, 7)]
+    [InlineData("inductor", ComponentCategory.Passive, "L", 2, 4)]
     [InlineData("diode", ComponentCategory.Semiconductor, "D", 2, 0)]
     [InlineData("nmos", ComponentCategory.Semiconductor, "M", 3, 0)]
     [InlineData("pmos", ComponentCategory.Semiconductor, "M", 3, 0)]
     [InlineData("npn", ComponentCategory.Semiconductor, "Q", 3, 0)]
     [InlineData("pnp", ComponentCategory.Semiconductor, "Q", 3, 0)]
-    [InlineData("voltage-source", ComponentCategory.Source, "V", 2, 1)]
-    [InlineData("current-source", ComponentCategory.Source, "I", 2, 1)]
+    [InlineData("voltage-source", ComponentCategory.Source, "V", 2, 2)]
+    [InlineData("current-source", ComponentCategory.Source, "I", 2, 2)]
     [InlineData("ground", ComponentCategory.Reference, "GND", 1, 0)]
     public void BaseComponentHasTheExpectedShape(
         string id, ComponentCategory category, string designatorPrefix, int pinCount, int parameterCount)
@@ -67,12 +67,12 @@ public class BaseCatalogTests
     public void BasePassiveParameterCarriesItsDefaultAndSeries(
         string id, string parameterName, Unit unit, double expectedValue, StandardSeries series)
     {
-        var parameter = SingleParameterOf(id);
+        var parameter = ParameterOf(id, parameterName);
 
-        Assert.Equal(parameterName, parameter.Name);
         Assert.Equal(unit, parameter.Unit);
         Assert.Equal(new Quantity(expectedValue, unit), parameter.Default);
         Assert.Equal(series, parameter.Series);
+        Assert.True(parameter.IsRequired);
     }
 
     [Theory]
@@ -80,11 +80,64 @@ public class BaseCatalogTests
     [InlineData("current-source", "current", Unit.Ampere, 1e-3)]
     public void BaseSourceParameterHasNoSeries(string id, string parameterName, Unit unit, double expectedValue)
     {
-        var parameter = SingleParameterOf(id);
+        var parameter = ParameterOf(id, parameterName);
 
-        Assert.Equal(parameterName, parameter.Name);
         Assert.Equal(new Quantity(expectedValue, unit), parameter.Default);
         Assert.Null(parameter.Series);
+    }
+
+    [Theory]
+    [InlineData("resistor", "resistance", "Resistance")]
+    [InlineData("capacitor", "capacitance", "Capacitance")]
+    [InlineData("inductor", "inductance", "Inductance")]
+    [InlineData("voltage-source", "voltage", "Voltage")]
+    [InlineData("current-source", "current", "Current")]
+    public void BaseBasicParameterCarriesItsLabelAndTier(string id, string parameterName, string label)
+    {
+        var parameter = ParameterOf(id, parameterName);
+
+        Assert.Equal(label, parameter.Label);
+        Assert.Equal(ParameterTier.Basic, parameter.Tier);
+    }
+
+    [Theory]
+    [InlineData("resistor", "power-rating", "Power rating", Unit.Watt)]
+    [InlineData("capacitor", "voltage-rating", "Voltage rating", Unit.Volt)]
+    [InlineData("capacitor", "rms-current-rating", "RMS current rating", Unit.Ampere)]
+    [InlineData("capacitor", "esr", "Equivalent series resistance", Unit.Ohm)]
+    [InlineData("capacitor", "esl", "Equivalent series inductance", Unit.Henry)]
+    [InlineData("capacitor", "parallel-resistance", "Equivalent parallel resistance", Unit.Ohm)]
+    [InlineData("capacitor", "parallel-capacitance", "Equivalent parallel capacitance", Unit.Farad)]
+    [InlineData("inductor", "series-resistance", "Series resistance", Unit.Ohm)]
+    [InlineData("inductor", "current-rating", "Current rating", Unit.Ampere)]
+    [InlineData("inductor", "parallel-capacitance", "Parallel capacitance", Unit.Farad)]
+    [InlineData("voltage-source", "series-resistance", "Series resistance", Unit.Ohm)]
+    [InlineData("current-source", "parallel-resistance", "Parallel resistance", Unit.Ohm)]
+    public void BaseAdvancedParameterIsOptionalAndNotNegative(
+        string id, string parameterName, string label, Unit unit)
+    {
+        var parameter = ParameterOf(id, parameterName);
+
+        Assert.Equal(label, parameter.Label);
+        Assert.Equal(ParameterTier.Advanced, parameter.Tier);
+        Assert.Equal(unit, parameter.Unit);
+        Assert.Null(parameter.Default);
+        Assert.False(parameter.IsRequired);
+        Assert.Equal(new Quantity(0, unit), parameter.Minimum);
+        Assert.Null(parameter.Maximum);
+    }
+
+    [Fact]
+    public void EveryBaseParameterCarriesALabelAndExactlyOneBasicRequiredParameter()
+    {
+        foreach (var definition in LoadBaseCatalog().Catalog.Definitions)
+        {
+            Assert.All(definition.Parameters, parameter => Assert.NotEmpty(parameter.Label));
+
+            Assert.Equal(
+                definition.Parameters.Count(parameter => parameter.IsRequired),
+                definition.Parameters.Count(parameter => parameter.Tier == ParameterTier.Basic));
+        }
     }
 
     [Theory]
@@ -117,10 +170,11 @@ public class BaseCatalogTests
         Assert.Null(definition);
     }
 
-    private static ParameterDefinition SingleParameterOf(string id)
+    private static ParameterDefinition ParameterOf(string id, string parameterName)
     {
         Assert.True(LoadBaseCatalog().Catalog.TryGetById(id, out var definition));
 
-        return Assert.Single(definition.Parameters);
+        return Assert.Single(
+            definition.Parameters, candidate => candidate.Name == parameterName);
     }
 }

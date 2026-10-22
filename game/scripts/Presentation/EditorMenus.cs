@@ -11,6 +11,7 @@ public sealed class EditorMenus
     private const string UndoLabel = "Undo";
     private const string RedoLabel = "Redo";
     private const string ShowGridLabel = "Show grid";
+    private const string PropertiesLabel = "Properties…";
 
     private static readonly ComponentCategory[] PlaceCategories =
     [
@@ -21,21 +22,29 @@ public sealed class EditorMenus
     ];
 
     private readonly Func<EditHistory> _history;
+    private readonly Func<bool> _hasComponentSelected;
     private readonly ComponentCatalog _catalog;
     private readonly PopupMenu _edit = new();
     private readonly PopupMenu _view = new();
 
     private int _undoIndex;
     private int _redoIndex;
+    private int _propertiesIndex;
     private int _showGridIndex;
 
-    public EditorMenus(MenuBar bar, Func<EditHistory> history, ComponentCatalog catalog)
+    public EditorMenus(
+        MenuBar bar,
+        Func<EditHistory> history,
+        ComponentCatalog catalog,
+        Func<bool> hasComponentSelected)
     {
         ArgumentNullException.ThrowIfNull(bar);
         ArgumentNullException.ThrowIfNull(history);
         ArgumentNullException.ThrowIfNull(catalog);
+        ArgumentNullException.ThrowIfNull(hasComponentSelected);
 
         _history = history;
+        _hasComponentSelected = hasComponentSelected;
         _catalog = catalog;
 
         BuildFile(bar);
@@ -59,6 +68,7 @@ public sealed class EditorMenus
         _edit.SetItemDisabled(_undoIndex, !history.CanUndo);
         _edit.SetItemText(_redoIndex, Described(RedoLabel, history.RedoDescription));
         _edit.SetItemDisabled(_redoIndex, !history.CanRedo);
+        _edit.SetItemDisabled(_propertiesIndex, !_hasComponentSelected());
         _view.SetItemChecked(_showGridIndex, ShowGrid);
     }
 
@@ -70,6 +80,9 @@ public sealed class EditorMenus
         var menu = AddMenu(bar, "File");
 
         AddCommand(menu, "New", EditorCommand.FileNew, null);
+        AddCommand(menu, "Open…", EditorCommand.FileOpen, EditorAction.Open);
+        AddCommand(menu, "Save", EditorCommand.FileSave, EditorAction.Save);
+        AddCommand(menu, "Save As…", EditorCommand.FileSaveAs, EditorAction.SaveAs);
         menu.AddSeparator();
         AddCommand(menu, "Quit", EditorCommand.FileQuit, null);
     }
@@ -86,6 +99,9 @@ public sealed class EditorMenus
         AddCommand(_edit, "Delete", EditorCommand.EditDelete, EditorAction.Delete);
         AddCommand(_edit, "Rotate", EditorCommand.EditRotate, EditorAction.Rotate);
         AddCommand(_edit, "Mirror", EditorCommand.EditMirror, EditorAction.Mirror);
+        _edit.AddSeparator();
+        AddCommand(_edit, PropertiesLabel, EditorCommand.EditProperties, EditorAction.Properties);
+        _propertiesIndex = _edit.ItemCount - 1;
         _edit.AddSeparator();
         AddCommand(_edit, "Wire tool", EditorCommand.EditWireTool, EditorAction.WireTool);
     }

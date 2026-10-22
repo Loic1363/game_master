@@ -47,22 +47,6 @@ public class SymbolLibraryTests
                 new SymbolText(new GridVector(0.5, -0.5), "+"),
             ],
             symbol.Primitives);
-
-        Assert.Equal(new GridVector(0, -1.2), symbol.DesignatorAnchor);
-        Assert.Equal(new GridVector(0, 1.2), symbol.ValueAnchor);
-    }
-
-    [Fact]
-    public void LabelValueAnchorIsOptional()
-    {
-        var json = SymbolJson.Valid().With("labels", """{ "designator": [0, -1.2] }""").ToString();
-
-        var result = SymbolLibraryLoader.Load(
-            new InMemoryContentSource(new ContentFile("widget.iec.json", json)),
-            SymbolCatalogs.TwoPinParts);
-
-        Assert.True(result.Library.TryGet("widget", SymbolStyle.Iec, out var symbol));
-        Assert.Null(symbol.ValueAnchor);
     }
 
     [Fact]
@@ -107,7 +91,5 @@ public class SymbolLibraryTests
     private static Symbol Symbol(string componentId) => new(
         componentId,
         SymbolStyle.Iec,
-        [new SymbolLine(new GridVector(-2, 0), new GridVector(2, 0))],
-        new GridVector(0, -1.2),
-        new GridVector(0, 1.2));
+        [new SymbolLine(new GridVector(-2, 0), new GridVector(2, 0))]);
 }

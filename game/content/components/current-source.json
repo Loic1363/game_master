@@ -11,6 +11,7 @@
     { "name": "minus", "x": 0, "y": 2 }
   ],
   "parameters": [
-    { "name": "current", "unit": "ampere", "default": "1m" }
+    { "name": "current", "label": "Current", "tier": "basic", "unit": "ampere", "default": "1m" },
+    { "name": "parallel-resistance", "label": "Parallel resistance", "tier": "advanced", "unit": "ohm", "min": "0" }
   ]
 }

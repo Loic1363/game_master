@@ -42,7 +42,7 @@ public class SchematicBoundsTests
     }
 
     [Fact]
-    public void BoundsCoverTheSymbolDrawingAndItsLabelAnchors()
+    public void BoundsCoverTheSymbolDrawingAndItsPlacedLabels()
     {
         var schematic = Schematic.Empty.Add("ground", 0, 4);
 
@@ -50,7 +50,7 @@ public class SchematicBoundsTests
         var withSymbols = SchematicBounds.Of(schematic, BaseCatalog.Catalog, BaseSymbols.Library);
 
         Assert.Equal(new GridBounds(new GridPoint(0, 4), new GridPoint(0, 4)), withoutSymbols);
-        Assert.Equal(new GridBounds(new GridPoint(-1, 4), new GridPoint(1, 6)), withSymbols);
+        Assert.Equal(new GridBounds(new GridPoint(-1, 3), new GridPoint(1, 6)), withSymbols);
     }
 
     [Fact]

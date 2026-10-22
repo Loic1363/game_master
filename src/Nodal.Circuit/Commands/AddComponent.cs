@@ -34,7 +34,7 @@ public sealed record AddComponent(string DefinitionId, GridPoint Position, Orien
 
     private static ImmutableSortedDictionary<string, Quantity> DefaultParameters(
         ComponentDefinition definition) =>
-        definition.Parameters.Aggregate(
+        definition.Parameters.Where(parameter => parameter.Default is not null).Aggregate(
             ImmutableSortedDictionary.Create<string, Quantity>(StringComparer.Ordinal),
-            (parameters, parameter) => parameters.Add(parameter.Name, parameter.Default));
+            (parameters, parameter) => parameters.Add(parameter.Name, parameter.Default!.Value));
 }

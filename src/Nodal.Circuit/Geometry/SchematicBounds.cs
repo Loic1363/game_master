@@ -56,9 +56,7 @@ public static class SchematicBounds
     {
         if (symbols.TryGet(component.DefinitionId, SymbolStyle.Iec, out var symbol))
         {
-            var placed = SymbolTransform.Apply(symbol, component.Orientation);
-
-            foreach (var corner in SymbolExtent.CornersWithLabels(placed))
+            foreach (var corner in SymbolExtent.CornersWithLabels(symbol, component.Orientation))
             {
                 yield return At(component.Position) + corner;
             }

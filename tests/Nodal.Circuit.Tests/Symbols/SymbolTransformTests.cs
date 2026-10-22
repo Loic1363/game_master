@@ -149,38 +149,21 @@ public class SymbolTransformTests
     }
 
     [Fact]
-    public void SymbolTransformMovesLabelAnchorsAndEveryPrimitive()
+    public void SymbolTransformMovesEveryPrimitiveAndKeepsItsIdentity()
     {
         var symbol = new Symbol(
             "widget",
             SymbolStyle.Iec,
-            [new SymbolLine(new GridVector(-2, 0), new GridVector(2, 0))],
-            new GridVector(0, -1.2),
-            new GridVector(0, 1.2));
+            [new SymbolLine(new GridVector(-2, 0), new GridVector(2, 0))]);
 
         var rotated = SymbolTransform.Apply(symbol, new Orientation(Rotation.R90, false));
 
-        Assert.Equal(new GridVector(1.2, 0), rotated.DesignatorAnchor);
-        Assert.Equal(new GridVector(-1.2, 0), rotated.ValueAnchor);
         Assert.Equal(
             new SymbolLine(new GridVector(0, -2), new GridVector(0, 2)),
             Assert.Single(rotated.Primitives));
 
         Assert.Equal("widget", rotated.ComponentId);
         Assert.Equal(SymbolStyle.Iec, rotated.Style);
-    }
-
-    [Fact]
-    public void SymbolWithoutAValueAnchorKeepsNone()
-    {
-        var symbol = new Symbol(
-            "widget",
-            SymbolStyle.Iec,
-            [new SymbolLine(new GridVector(-2, 0), new GridVector(2, 0))],
-            new GridVector(0, -1.2),
-            null);
-
-        Assert.Null(SymbolTransform.Apply(symbol, new Orientation(Rotation.R180, true)).ValueAnchor);
     }
 
     [Fact]
@@ -192,9 +175,7 @@ public class SymbolTransformTests
             [
                 new SymbolArc(new GridVector(0.9, 0), 0.3, 180, 180),
                 new SymbolRect(-1, -0.4, 2, 0.8),
-            ],
-            new GridVector(0, -1.2),
-            new GridVector(0, 1.2));
+            ]);
 
         Assert.Equal(symbol, SymbolTransform.Apply(symbol, Orientation.Default));
     }

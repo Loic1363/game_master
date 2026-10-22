@@ -96,17 +96,11 @@ public class InvalidSymbolFileTests
                 WithPrimitive("""{ "type": "text", "at": [0, 0], "value": " " }"""),
                 "$.primitives[1].value",
                 "must not be empty");
-            Add(data, Missing("labels"), "$.labels", "Required field 'labels' is missing");
             Add(
                 data,
-                Broken("labels", """{ "value": [0, 1.2] }"""),
-                "$.labels.designator",
-                "Required field 'designator' is missing");
-            Add(
-                data,
-                Broken("labels", """{ "designator": [0, -1.2], "middle": [0, 0] }"""),
-                "$.labels.middle",
-                "Unknown field 'middle'");
+                Broken("labels", """{ "designator": [0, -1.2], "value": [0, 1.2] }"""),
+                "$.labels",
+                "Unknown field 'labels'");
             Add(
                 data,
                 Broken("primitives", """[{ "type": "line", "from": [-2, 0], "to": [0, 0] }]"""),

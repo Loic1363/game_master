@@ -55,46 +55,85 @@ public class InvalidComponentFileTests
                 "$.pins[0].z",
                 "Unknown field 'z'");
             Add(data, Broken("pins", "{}"), "$.pins", "must be an array");
+            Add(data, BrokenParameter(Named("Resistance")), "$.parameters[0].name", LowercaseWords);
+            Add(data, BrokenParameter(Named("voltage--rating")), "$.parameters[0].name", LowercaseWords);
+            Add(data, BrokenParameter(Named("voltage-")), "$.parameters[0].name", LowercaseWords);
             Add(
                 data,
-                Broken("parameters", """[{ "name": "Resistance", "unit": "ohm", "default": "1k" }]"""),
-                "$.parameters[0].name",
-                "must start with a lowercase letter");
+                BrokenParameter(Parameter(Name, Tier, Ohm)),
+                "$.parameters[0].label",
+                "Required field 'label' is missing");
             Add(
                 data,
-                Broken("parameters", """[{ "name": "charge", "unit": "coulomb", "default": "1" }]"""),
+                BrokenParameter(Parameter(Name, Field("label", "  "), Tier, Ohm)),
+                "$.parameters[0].label",
+                "must not be empty");
+            Add(
+                data,
+                BrokenParameter(Parameter(Name, Label, Ohm)),
+                "$.parameters[0].tier",
+                "Required field 'tier' is missing");
+            Add(
+                data,
+                BrokenParameter(Parameter(Name, Label, Field("tier", "expert"), Ohm)),
+                "$.parameters[0].tier",
+                "Unknown tier 'expert'");
+            Add(
+                data,
+                BrokenParameter(Parameter(Name, Label, Tier, Field("unit", "coulomb"))),
                 "$.parameters[0].unit",
                 "Unknown unit 'coulomb'");
             Add(
                 data,
-                Broken("parameters", """[{ "name": "resistance", "unit": "ohm", "default": "oops" }]"""),
+                BrokenParameter(Parameter(Name, Label, Tier, Ohm, Field("default", "oops"))),
                 "$.parameters[0].default",
                 "is not a valid value for this unit");
             Add(
                 data,
-                Broken("parameters", """[{ "name": "resistance", "unit": "ohm", "default": "1k", "series": "E3" }]"""),
+                BrokenParameter(Parameter(Name, Label, Tier, Ohm, Default, Field("series", "E3"))),
                 "$.parameters[0].series",
                 "Unknown series 'E3'");
             Add(
                 data,
-                Broken("parameters", """[{ "name": "resistance", "unit": "ohm", "default": "1k2", "series": "E6" }]"""),
+                BrokenParameter(
+                    Parameter(Name, Label, Tier, Ohm, Field("default", "1k2"), Field("series", "E6"))),
                 "$.parameters[0].default",
                 "does not belong to series E6");
             Add(
                 data,
-                Broken(
-                    "parameters",
-                    """
-                    [{ "name": "resistance", "unit": "ohm", "default": "1k" },
-                     { "name": "resistance", "unit": "ohm", "default": "2k" }]
-                    """),
+                BrokenParameter(Parameter(Name, Label, Tier, Ohm, Default, Field("min", "2k"))),
+                "$.parameters[0].default",
+                "is below the minimum");
+            Add(
+                data,
+                BrokenParameter(Parameter(Name, Label, Tier, Ohm, Default, Field("max", "500"))),
+                "$.parameters[0].default",
+                "is above the maximum");
+            Add(
+                data,
+                BrokenParameter(
+                    Parameter(Name, Label, Tier, Ohm, Field("min", "2k"), Field("max", "1k"))),
+                "$.parameters[0].min",
+                "must not be greater than the maximum");
+            Add(
+                data,
+                BrokenParameter(Parameter(Name, Label, Tier, Ohm, Field("min", "5 V"))),
+                "$.parameters[0].min",
+                "is not a valid value for this unit");
+            Add(
+                data,
+                BrokenParameter(Parameter(Name, Label, Tier, Ohm, Default, Field("max", "5 V"))),
+                "$.parameters[0].max",
+                "is not a valid value for this unit");
+            Add(
+                data,
+                Broken("parameters", "[" + ValidParameter + ", " + ValidParameter + "]"),
                 "$.parameters",
                 "The parameter name 'resistance' is used more than once.");
             Add(
                 data,
-                Broken(
-                    "parameters",
-                    """[{ "name": "resistance", "unit": "ohm", "default": "1k", "tolerance": "1%" }]"""),
+                BrokenParameter(
+                    Parameter(Name, Label, Tier, Ohm, Default, Field("tolerance", "1%"))),
                 "$.parameters[0].tolerance",
                 "Unknown field 'tolerance'");
             Add(data, Broken("flavour", Text("salty")), "$.flavour", "Unknown field 'flavour'");
@@ -107,6 +146,30 @@ public class InvalidComponentFileTests
             return data;
         }
     }
+
+    private const string LowercaseWords = "must start with a lowercase letter";
+
+    private static readonly string Name = Field("name", "resistance");
+
+    private static readonly string Label = Field("label", "Resistance");
+
+    private static readonly string Tier = Field("tier", "basic");
+
+    private static readonly string Ohm = Field("unit", "ohm");
+
+    private static readonly string Default = Field("default", "1k");
+
+    private static readonly string ValidParameter = Parameter(Name, Label, Tier, Ohm, Default);
+
+    private static string Field(string name, string value) => Text(name) + ": " + Text(value);
+
+    private static string Parameter(params string[] fields) => "{ " + string.Join(", ", fields) + " }";
+
+    private static string Named(string name) =>
+        Parameter(Field("name", name), Label, Tier, Ohm, Default);
+
+    private static string BrokenParameter(string parameterJson) =>
+        Broken("parameters", "[" + parameterJson + "]");
 
     [Theory]
     [MemberData(nameof(InvalidFiles))]

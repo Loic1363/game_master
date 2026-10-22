@@ -30,8 +30,6 @@ public static class SymbolTransform
         return symbol with
         {
             Primitives = [.. symbol.Primitives.Select(primitive => Apply(primitive, orientation))],
-            DesignatorAnchor = Apply(symbol.DesignatorAnchor, orientation),
-            ValueAnchor = symbol.ValueAnchor is { } anchor ? Apply(anchor, orientation) : null,
         };
     }
 

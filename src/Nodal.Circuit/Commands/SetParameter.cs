@@ -11,25 +11,13 @@ public sealed record SetParameter(ComponentId Id, string ParameterName, Quantity
         ArgumentNullException.ThrowIfNull(schematic);
         ArgumentNullException.ThrowIfNull(catalog);
 
-        if (!schematic.TryGetComponent(Id, out var component))
+        if (!ParameterLookup.TryFind(schematic, catalog, Id, ParameterName, out var target, out var failure))
         {
-            return EditFailures.UnknownComponent(Id);
+            return failure;
         }
 
-        if (!catalog.TryGetById(component.DefinitionId, out var definition))
-        {
-            return EditFailures.UnknownDefinition(component.DefinitionId);
-        }
-
-        var parameter = definition.Parameters.FirstOrDefault(
-            candidate => string.Equals(candidate.Name, ParameterName, StringComparison.Ordinal));
-
-        if (parameter is null)
-        {
-            return CommandResult.Failure(
-                EditErrorCode.UnknownParameter,
-                $"{component.Designator} has no parameter named '{ParameterName}'.");
-        }
+        var component = target.Component;
+        var parameter = target.Parameter;
 
         if (Value.Unit != parameter.Unit)
         {
@@ -37,6 +25,20 @@ public sealed record SetParameter(ComponentId Id, string ParameterName, Quantity
                 EditErrorCode.UnitMismatch,
                 $"The parameter {parameter.Name} of {component.Designator} expects a value in " +
                 $"{parameter.Unit}, not in {Value.Unit}.");
+        }
+
+        if (parameter.Minimum is { } minimum && Value.Value < minimum.Value)
+        {
+            return CommandResult.Failure(
+                EditErrorCode.ValueOutOfBounds,
+                $"{Value} is below the minimum {minimum} of {parameter.Name} on {component.Designator}.");
+        }
+
+        if (parameter.Maximum is { } maximum && Value.Value > maximum.Value)
+        {
+            return CommandResult.Failure(
+                EditErrorCode.ValueOutOfBounds,
+                $"{Value} is above the maximum {maximum} of {parameter.Name} on {component.Designator}.");
         }
 
         if (parameter.Series is { } series && !BelongsToSeries(series, Value.Value))

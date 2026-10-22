@@ -11,6 +11,7 @@
     { "name": "minus", "x": 0, "y": 2 }
   ],
   "parameters": [
-    { "name": "voltage", "unit": "volt", "default": "5" }
+    { "name": "voltage", "label": "Voltage", "tier": "basic", "unit": "volt", "default": "5" },
+    { "name": "series-resistance", "label": "Series resistance", "tier": "advanced", "unit": "ohm", "min": "0" }
   ]
 }

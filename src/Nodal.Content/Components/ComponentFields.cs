@@ -13,8 +13,12 @@ internal static class ComponentFields
     public const string Parameters = "parameters";
     public const string X = "x";
     public const string Y = "y";
+    public const string Label = "label";
+    public const string Tier = "tier";
     public const string Unit = "unit";
     public const string Default = "default";
+    public const string Minimum = "min";
+    public const string Maximum = "max";
     public const string Series = "series";
 
     public const string GlobalNet = "globalNet";
@@ -24,5 +28,6 @@ internal static class ComponentFields
 
     public static readonly string[] Pin = [Name, X, Y, GlobalNet];
 
-    public static readonly string[] Parameter = [Name, Unit, Default, Series];
+    public static readonly string[] Parameter =
+        [Name, Label, Tier, Unit, Default, Minimum, Maximum, Series];
 }

@@ -136,6 +136,14 @@ public class SchematicTests
             ComponentCategory.Passive,
             "W",
             [new PinDefinition("1", -1, 0)],
-            [new ParameterDefinition("gain", Unit.Dimensionless, new Quantity(2, Unit.Dimensionless), null)]),
+            [new ParameterDefinition(
+                "gain",
+                "Gain",
+                ParameterTier.Basic,
+                Unit.Dimensionless,
+                new Quantity(2, Unit.Dimensionless),
+                null,
+                null,
+                null)]),
     ]);
 }

@@ -14,6 +14,10 @@ public static class CanvasMetrics
 
     public const float HoverTolerancePixels = 8f;
 
+    public const float DragThresholdPixels = 4f;
+
+    public const float DanglingEndSizePixels = 6f;
+
     public const float GhostOpacity = 0.5f;
 
     public const float MinimumZoom = 0.25f;
@@ -21,8 +25,6 @@ public static class CanvasMetrics
     public const float MaximumZoom = 8f;
 
     public const float ZoomStep = 1.2f;
-
-    public const float LabelHeightInGridUnits = 0.6f;
 
     public const int MinimumFontSize = 6;
 

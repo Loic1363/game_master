@@ -8,6 +8,5 @@
     { "type": "polygon", "points": [[-0.6, -0.7], [-0.6, 0.7], [0.6, 0]], "filled": true },
     { "type": "line", "from": [0.6, -0.7], "to": [0.6, 0.7] },
     { "type": "line", "from": [0.6, 0], "to": [2, 0] }
-  ],
-  "labels": { "designator": [0, -1.2] }
+  ]
 }

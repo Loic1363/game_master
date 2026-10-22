@@ -2,4 +2,15 @@ using Nodal.Foundation.Quantities;
 
 namespace Nodal.Content.Components;
 
-public sealed record ParameterDefinition(string Name, Unit Unit, Quantity Default, StandardSeries? Series);
+public sealed record ParameterDefinition(
+    string Name,
+    string Label,
+    ParameterTier Tier,
+    Unit Unit,
+    Quantity? Default,
+    Quantity? Minimum,
+    Quantity? Maximum,
+    StandardSeries? Series)
+{
+    public bool IsRequired => Default is not null;
+}

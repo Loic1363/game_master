@@ -11,6 +11,9 @@
     { "name": "2", "x": 2, "y": 0 }
   ],
   "parameters": [
-    { "name": "inductance", "unit": "henry", "default": "10u", "series": "E12" }
+    { "name": "inductance", "label": "Inductance", "tier": "basic", "unit": "henry", "default": "10u", "series": "E12" },
+    { "name": "series-resistance", "label": "Series resistance", "tier": "advanced", "unit": "ohm", "min": "0" },
+    { "name": "current-rating", "label": "Current rating", "tier": "advanced", "unit": "ampere", "min": "0" },
+    { "name": "parallel-capacitance", "label": "Parallel capacitance", "tier": "advanced", "unit": "farad", "min": "0" }
   ]
 }

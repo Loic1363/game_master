@@ -25,6 +25,12 @@ internal static class ComponentVocabulary
         ["watt"] = Unit.Watt,
     };
 
+    private static readonly Dictionary<string, ParameterTier> TierByName = new(StringComparer.Ordinal)
+    {
+        ["basic"] = ParameterTier.Basic,
+        ["advanced"] = ParameterTier.Advanced,
+    };
+
     private static readonly Dictionary<string, StandardSeries> SeriesByName = new(StringComparer.Ordinal)
     {
         ["E6"] = StandardSeries.E6,
@@ -36,12 +42,16 @@ internal static class ComponentVocabulary
 
     public static string UnitNames => Join(UnitByName.Keys);
 
+    public static string TierNames => Join(TierByName.Keys);
+
     public static string SeriesNames => Join(SeriesByName.Keys);
 
     public static bool TryCategory(string name, out ComponentCategory category) =>
         CategoryByName.TryGetValue(name, out category);
 
     public static bool TryUnit(string name, out Unit unit) => UnitByName.TryGetValue(name, out unit);
+
+    public static bool TryTier(string name, out ParameterTier tier) => TierByName.TryGetValue(name, out tier);
 
     public static bool TrySeries(string name, out StandardSeries series) =>
         SeriesByName.TryGetValue(name, out series);

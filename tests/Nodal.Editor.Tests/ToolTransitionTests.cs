@@ -85,11 +85,11 @@ public class ToolTransitionTests
 
         session.ChooseWire();
         session.ClickAt(0, 0);
-        session.SecondaryPressed();
+        session.SecondaryPressed(new GridVector(0, 0));
 
         Assert.Equal(EditorToolKind.Wire, session.Tool);
 
-        session.SecondaryPressed();
+        session.SecondaryPressed(new GridVector(0, 0));
 
         Assert.Equal(EditorToolKind.Select, session.Tool);
     }

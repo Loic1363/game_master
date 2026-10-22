@@ -97,7 +97,14 @@ public class StructuralRecordEqualityTests
         [Parameter()]);
 
     private static ParameterDefinition Parameter() => new(
-        "resistance", Unit.Ohm, new Quantity(1000, Unit.Ohm), StandardSeries.E24);
+        "resistance",
+        "Resistance",
+        ParameterTier.Basic,
+        Unit.Ohm,
+        new Quantity(1000, Unit.Ohm),
+        null,
+        null,
+        StandardSeries.E24);
 
     private const string ResistorJson = """
         {
@@ -113,7 +120,8 @@ public class StructuralRecordEqualityTests
             { "name": "2", "x": 2, "y": 0 }
           ],
           "parameters": [
-            { "name": "resistance", "unit": "ohm", "default": "1k", "series": "E24" }
+            { "name": "resistance", "label": "Resistance", "tier": "basic",
+              "unit": "ohm", "default": "1k", "series": "E24" }
           ]
         }
         """;

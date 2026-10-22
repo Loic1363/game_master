@@ -20,7 +20,12 @@ internal sealed class ComponentJson
             new("category", Text("passive")),
             new("designatorPrefix", Text("W")),
             new("pins", """[{ "name": "1", "x": -2, "y": 0 }, { "name": "2", "x": 2, "y": 0 }]"""),
-            new("parameters", """[{ "name": "resistance", "unit": "ohm", "default": "1k", "series": "E24" }]"""),
+            new(
+                "parameters",
+                """
+                [{ "name": "resistance", "label": "Resistance", "tier": "basic",
+                   "unit": "ohm", "default": "1k", "series": "E24" }]
+                """),
         ]);
 
     public static string Text(string value) => "\"" + value + "\"";

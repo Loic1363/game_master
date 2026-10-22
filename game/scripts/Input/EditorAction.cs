@@ -7,6 +7,10 @@ public static class EditorAction
     public const string PlaceInductor = "nodal_place_inductor";
     public const string PlaceDiode = "nodal_place_diode";
     public const string PlaceGround = "nodal_place_ground";
+    public const string Open = "nodal_open";
+    public const string Save = "nodal_save";
+    public const string SaveAs = "nodal_save_as";
+    public const string Properties = "nodal_properties";
     public const string WireTool = "nodal_tool_wire";
     public const string Delete = "nodal_delete";
     public const string Rotate = "nodal_rotate";

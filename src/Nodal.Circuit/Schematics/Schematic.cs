@@ -33,6 +33,24 @@ public sealed class Schematic
 
     public WireId NextWireId { get; }
 
+    public static Schematic Create(
+        IEnumerable<ComponentInstance> components,
+        IEnumerable<Wire> wires,
+        ComponentId nextComponentId,
+        WireId nextWireId)
+    {
+        ArgumentNullException.ThrowIfNull(components);
+        ArgumentNullException.ThrowIfNull(wires);
+
+        var componentsById = CollectComponents(components);
+        var wiresById = CollectWires(wires);
+
+        RequireNextComponentId(componentsById, nextComponentId);
+        RequireNextWireId(wiresById, nextWireId);
+
+        return new Schematic(componentsById, wiresById, nextComponentId, nextWireId);
+    }
+
     public bool TryGetComponent(ComponentId id, [NotNullWhen(true)] out ComponentInstance? component) =>
         Components.TryGetValue(id, out component);
 
@@ -119,5 +137,95 @@ public sealed class Schematic
         }
 
         return new Schematic(Components, Wires.Remove(id), NextComponentId, NextWireId);
+    }
+
+    private static ImmutableSortedDictionary<ComponentId, ComponentInstance> CollectComponents(
+        IEnumerable<ComponentInstance> components)
+    {
+        var builder = ImmutableSortedDictionary.CreateBuilder<ComponentId, ComponentInstance>();
+        var designators = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var component in components)
+        {
+            ArgumentNullException.ThrowIfNull(component, nameof(components));
+
+            if (builder.ContainsKey(component.Id))
+            {
+                throw new ArgumentException(
+                    $"The component id {component.Id} is used more than once.", nameof(components));
+            }
+
+            if (!designators.Add(component.Designator))
+            {
+                throw new ArgumentException(
+                    $"The designator '{component.Designator}' is used more than once.",
+                    nameof(components));
+            }
+
+            builder.Add(component.Id, component);
+        }
+
+        return builder.ToImmutable();
+    }
+
+    private static ImmutableSortedDictionary<WireId, Wire> CollectWires(IEnumerable<Wire> wires)
+    {
+        var builder = ImmutableSortedDictionary.CreateBuilder<WireId, Wire>();
+
+        foreach (var wire in wires)
+        {
+            ArgumentNullException.ThrowIfNull(wire, nameof(wires));
+
+            if (builder.ContainsKey(wire.Id))
+            {
+                throw new ArgumentException(
+                    $"The wire id {wire.Id} is used more than once.", nameof(wires));
+            }
+
+            builder.Add(wire.Id, wire);
+        }
+
+        return builder.ToImmutable();
+    }
+
+    private static void RequireNextComponentId(
+        ImmutableSortedDictionary<ComponentId, ComponentInstance> components, ComponentId nextComponentId)
+    {
+        if (nextComponentId.Value < ComponentId.First.Value)
+        {
+            throw new ArgumentException(
+                $"The next component id {nextComponentId} must be at least {ComponentId.First}.",
+                nameof(nextComponentId));
+        }
+
+        foreach (var id in components.Keys)
+        {
+            if (id.Value >= nextComponentId.Value)
+            {
+                throw new ArgumentException(
+                    $"The next component id {nextComponentId} must be greater than the used id {id}.",
+                    nameof(nextComponentId));
+            }
+        }
+    }
+
+    private static void RequireNextWireId(
+        ImmutableSortedDictionary<WireId, Wire> wires, WireId nextWireId)
+    {
+        if (nextWireId.Value < WireId.First.Value)
+        {
+            throw new ArgumentException(
+                $"The next wire id {nextWireId} must be at least {WireId.First}.", nameof(nextWireId));
+        }
+
+        foreach (var id in wires.Keys)
+        {
+            if (id.Value >= nextWireId.Value)
+            {
+                throw new ArgumentException(
+                    $"The next wire id {nextWireId} must be greater than the used id {id}.",
+                    nameof(nextWireId));
+            }
+        }
     }
 }

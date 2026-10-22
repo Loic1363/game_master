@@ -41,7 +41,15 @@ internal static class Circuits
             ComponentCategory.Passive,
             "W",
             [new PinDefinition("a", -2, 0), new PinDefinition("b", 2, 0)],
-            [new ParameterDefinition("gain", Unit.Dimensionless, new Quantity(2, Unit.Dimensionless), null)]),
+            [new ParameterDefinition(
+                "gain",
+                "Gain",
+                ParameterTier.Basic,
+                Unit.Dimensionless,
+                new Quantity(2, Unit.Dimensionless),
+                null,
+                null,
+                null)]),
     ]);
 
     private static ComponentDefinition Reference(string id, string prefix, string globalNet) =>

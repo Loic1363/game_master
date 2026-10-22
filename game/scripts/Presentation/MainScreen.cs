@@ -1,7 +1,10 @@
+using System.Collections.Immutable;
 using Godot;
+using Nodal.Circuit.Commands;
 using Nodal.Circuit.Connectivity;
 using Nodal.Circuit.Editing;
 using Nodal.Circuit.Netlists;
+using Nodal.Circuit.Persistence;
 using Nodal.Circuit.Schematics;
 using Nodal.Content.Components;
 using Nodal.Content.Symbols;
@@ -26,23 +29,41 @@ public partial class MainScreen : Control
     private const string AboutTitle = "About";
     private const string AboutSuffix = " — development build";
     private const string ShortcutsTitle = "Keyboard shortcuts";
-    private const string DiscardTitle = "Discard the schematic?";
+    private const string DiscardTitle = "Unsaved changes";
     private const string NewQuestion = "The schematic has unsaved changes. Start a new one?";
+    private const string OpenQuestion = "The schematic has unsaved changes. Open another one?";
     private const string QuitQuestion = "The schematic has unsaved changes. Quit?";
+    private const string DiscardLabel = "Discard";
+    private const string SaveLabel = "Save";
+    private const string SaveAction = "save";
+    private const string OpenDialogTitle = "Open a schematic";
+    private const string SaveDialogTitle = "Save the schematic";
+    private const string SchematicFilterLabel = "Nodal schematics";
+    private const string OpenFailedTitle = "The file could not be opened";
+    private const string SaveFailedTitle = "The file could not be saved";
+    private const string RepairedTitle = "The file was repaired";
+    private const string MoreSuffix = " more";
+    private const int MaximumListedLines = 20;
 
     private readonly ConfirmationDialog _confirm = new();
     private readonly AcceptDialog _about = new();
     private readonly AcceptDialog _shortcuts = new();
+    private readonly AcceptDialog _message = new();
+    private readonly PropertiesDialog _properties = new();
+    private readonly SchematicDocument _document = new();
 
     private ComponentCatalog _catalog = ComponentCatalog.Empty;
     private SymbolLibrary _symbols = SymbolLibrary.Empty;
     private SchematicCanvas? _canvas;
     private EditorMenus? _menus;
     private Label? _statusLabel;
+    private FileDialog? _openDialog;
+    private FileDialog? _saveDialog;
     private EditHistory? _history;
     private EditorSession? _session;
     private Net? _hoveredNet;
     private Action? _confirmed;
+    private Action? _afterSave;
     private int _netCount;
     private int _warningCount;
     private bool _panModifierHeld;
@@ -65,11 +86,13 @@ public partial class MainScreen : Control
 
         BuildDialogs();
 
-        _menus = new EditorMenus(GetNode<MenuBar>(MenuBarPath), CurrentHistory, _catalog);
+        _menus = new EditorMenus(
+            GetNode<MenuBar>(MenuBarPath), CurrentHistory, _catalog, HasComponentSelected);
         _menus.CommandChosen += OnCommand;
         _menus.PlacementChosen += OnPlacement;
 
         Start(DemoSchematic.Build(_catalog));
+        CurrentHistory().MarkSaved();
 
         GD.Print(NetlistCompiler.Compile(CurrentHistory().Schematic, _catalog).ToDebugText());
     }
@@ -126,11 +149,27 @@ public partial class MainScreen : Control
 
         _session = new EditorSession(history, _symbols);
         _session.Changed += OnSessionChanged;
+        _session.PropertiesRequested += OnPropertiesRequested;
 
         _canvas?.Display(_session, _symbols, Analyse(history));
         _menus?.Refresh();
 
         ShowStatus();
+        ShowTitle();
+    }
+
+    private void Load(Schematic schematic, string? path)
+    {
+        if (path is null)
+        {
+            _document.Reset();
+        }
+        else
+        {
+            _document.Track(path);
+        }
+
+        Start(new EditHistory(schematic, _catalog));
     }
 
     private ConnectivityResult Analyse(EditHistory history)
@@ -144,7 +183,12 @@ public partial class MainScreen : Control
         return connectivity;
     }
 
-    private void OnSchematicChanged() => _canvas?.SetConnectivity(Analyse(CurrentHistory()));
+    private void OnSchematicChanged()
+    {
+        _canvas?.SetConnectivity(Analyse(CurrentHistory()));
+
+        ShowTitle();
+    }
 
     private void OnSessionChanged()
     {
@@ -189,6 +233,22 @@ public partial class MainScreen : Control
 
         switch (binding.Action)
         {
+            case EditorAction.Open:
+                OnCommand(EditorCommand.FileOpen);
+                break;
+
+            case EditorAction.Save:
+                OnCommand(EditorCommand.FileSave);
+                break;
+
+            case EditorAction.SaveAs:
+                OnCommand(EditorCommand.FileSaveAs);
+                break;
+
+            case EditorAction.Properties:
+                OnCommand(EditorCommand.EditProperties);
+                break;
+
             case EditorAction.WireTool:
                 OnCommand(EditorCommand.EditWireTool);
                 break;
@@ -244,7 +304,20 @@ public partial class MainScreen : Control
         switch (command)
         {
             case EditorCommand.FileNew:
-                Confirm(NewQuestion, () => Start(new EditHistory(Schematic.Empty, _catalog)));
+                Confirm(NewQuestion, () => Load(Schematic.Empty, null));
+                break;
+
+            case EditorCommand.FileOpen:
+                Confirm(OpenQuestion, ShowOpenDialog);
+                break;
+
+            case EditorCommand.FileSave:
+                SaveThen(null);
+                break;
+
+            case EditorCommand.FileSaveAs:
+                _afterSave = null;
+                ShowSaveDialog();
                 break;
 
             case EditorCommand.FileQuit:
@@ -269,6 +342,10 @@ public partial class MainScreen : Control
 
             case EditorCommand.EditMirror:
                 _session?.Mirror();
+                break;
+
+            case EditorCommand.EditProperties:
+                _session?.RequestPropertiesForSelection();
                 break;
 
             case EditorCommand.EditWireTool:
@@ -316,7 +393,7 @@ public partial class MainScreen : Control
 
     private void Confirm(string question, Action accepted)
     {
-        if (!CurrentHistory().CanUndo)
+        if (!CurrentHistory().IsDirty)
         {
             accepted();
 
@@ -329,11 +406,140 @@ public partial class MainScreen : Control
         _confirm.PopupCentered();
     }
 
+    private void ShowOpenDialog()
+    {
+        if (_openDialog is null)
+        {
+            return;
+        }
+
+        _openDialog.CurrentDir = SchematicFiles.DefaultDirectory();
+        _openDialog.PopupCentered();
+    }
+
+    private void ShowSaveDialog()
+    {
+        if (_saveDialog is null)
+        {
+            return;
+        }
+
+        _saveDialog.CurrentDir = SchematicFiles.DefaultDirectory();
+        _saveDialog.CurrentFile = _document.IsUntitled ? string.Empty : _document.Name;
+        _saveDialog.PopupCentered();
+    }
+
+    private void SaveThen(Action? next)
+    {
+        _afterSave = next;
+
+        if (_document.FilePath is { } path)
+        {
+            WriteTo(path);
+
+            return;
+        }
+
+        ShowSaveDialog();
+    }
+
+    private void OnSavePathChosen(string path) => WriteTo(SchematicFiles.WithExtension(path));
+
+    private void OnSaveDialogCanceled() => _afterSave = null;
+
+    private void WriteTo(string path)
+    {
+        var text = SchematicFile.Write(CurrentHistory().Schematic);
+
+        if (!SchematicFiles.TryWrite(path, text, out var error))
+        {
+            _afterSave = null;
+
+            ShowMessage(SaveFailedTitle, error);
+
+            return;
+        }
+
+        _document.Track(path);
+        CurrentHistory().MarkSaved();
+        ShowTitle();
+
+        var next = _afterSave;
+        _afterSave = null;
+
+        next?.Invoke();
+    }
+
+    private void OnOpenPathChosen(string path)
+    {
+        if (!SchematicFiles.TryRead(path, out var text, out var error))
+        {
+            ShowMessage(OpenFailedTitle, error);
+
+            return;
+        }
+
+        var result = SchematicFile.Read(text, _catalog);
+
+        if (!result.Loaded)
+        {
+            ShowMessage(OpenFailedTitle, Listed(result.Errors));
+
+            return;
+        }
+
+        Load(result.Schematic, path);
+
+        if (result.Warnings.Length > 0)
+        {
+            ShowMessage(RepairedTitle, Listed(result.Warnings));
+        }
+    }
+
+    private void ShowMessage(string title, string text)
+    {
+        _message.Title = title;
+        _message.DialogText = text;
+
+        _message.PopupCentered();
+    }
+
+    private static string Listed(ImmutableArray<SchematicDiagnostic> diagnostics)
+    {
+        var lines = diagnostics
+            .Take(MaximumListedLines)
+            .Select(diagnostic => $"{diagnostic.Path}: {diagnostic.Message}")
+            .ToList();
+
+        if (diagnostics.Length > MaximumListedLines)
+        {
+            lines.Add($"and {diagnostics.Length - MaximumListedLines}{MoreSuffix}");
+        }
+
+        return string.Join("\n", lines);
+    }
+
+    private void ShowTitle() =>
+        DisplayServer.WindowSetTitle(_document.Title(_history?.IsDirty ?? false));
+
     private void BuildDialogs()
     {
         _confirm.Title = DiscardTitle;
+        _confirm.OkButtonText = DiscardLabel;
+        _confirm.AddButton(SaveLabel, right: false, SaveAction);
         _confirm.Confirmed += OnConfirmed;
+        _confirm.Canceled += OnConfirmCanceled;
+        _confirm.CustomAction += OnConfirmCustomAction;
         AddChild(_confirm);
+
+        _openDialog = BuildFileDialog(FileDialog.FileModeEnum.OpenFile, OpenDialogTitle);
+        _openDialog.FileSelected += OnOpenPathChosen;
+
+        _saveDialog = BuildFileDialog(FileDialog.FileModeEnum.SaveFile, SaveDialogTitle);
+        _saveDialog.FileSelected += OnSavePathChosen;
+        _saveDialog.Canceled += OnSaveDialogCanceled;
+
+        AddChild(_message);
 
         _about.Title = AboutTitle;
         _about.DialogText = $"{NodalInfo.Name} {NodalInfo.Version}{AboutSuffix}";
@@ -342,6 +548,30 @@ public partial class MainScreen : Control
         _shortcuts.Title = ShortcutsTitle;
         _shortcuts.DialogText = ShortcutsText();
         AddChild(_shortcuts);
+
+        _properties.Applied += OnPropertiesApplied;
+        AddChild(_properties);
+    }
+
+    private bool HasComponentSelected() => _session?.Selection.Component is not null;
+
+    private void OnPropertiesRequested(ComponentId id)
+    {
+        if (_session is null
+            || !_session.Schematic.TryGetComponent(id, out var component)
+            || !_catalog.TryGetById(component.DefinitionId, out var definition))
+        {
+            return;
+        }
+
+        _properties.Open(component, definition);
+    }
+
+    private void OnPropertiesApplied(IEditCommand command)
+    {
+        _session?.Run(command);
+
+        OnSessionChanged();
     }
 
     private void OnConfirmed()
@@ -350,6 +580,39 @@ public partial class MainScreen : Control
         _confirmed = null;
 
         accepted?.Invoke();
+    }
+
+    private void OnConfirmCanceled() => _confirmed = null;
+
+    private void OnConfirmCustomAction(StringName action)
+    {
+        if (action != SaveAction)
+        {
+            return;
+        }
+
+        var accepted = _confirmed;
+        _confirmed = null;
+
+        _confirm.Hide();
+
+        SaveThen(accepted);
+    }
+
+    private FileDialog BuildFileDialog(FileDialog.FileModeEnum mode, string title)
+    {
+        var dialog = new FileDialog
+        {
+            Title = title,
+            Access = FileDialog.AccessEnum.Filesystem,
+            FileMode = mode,
+            UseNativeDialog = true,
+        };
+
+        dialog.AddFilter("*" + SchematicFile.Extension, SchematicFilterLabel);
+        AddChild(dialog);
+
+        return dialog;
     }
 
     private static string ShortcutsText()

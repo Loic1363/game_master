@@ -242,20 +242,28 @@ internal sealed class ComponentDefinitionReader
         RejectUnknownFields(element, path, ComponentFields.Parameter);
 
         var name = ReadParameterName(element, path);
+        var label = ReadRequiredText(element, path, ComponentFields.Label);
 
         if (!TryReadUnit(element, path, out var unit)
-            || !TryReadDefaultValue(element, path, unit, out var defaultValue)
+            || !TryReadTier(element, path, out var tier)
+            || !TryReadQuantity(element, path, ComponentFields.Default, unit, out var defaultValue)
+            || !TryReadQuantity(element, path, ComponentFields.Minimum, unit, out var minimum)
+            || !TryReadQuantity(element, path, ComponentFields.Maximum, unit, out var maximum)
             || !TryReadSeries(element, path, out var series))
         {
             return null;
         }
 
-        if (series is not null && !BelongsToSeries(series.Value, defaultValue, path))
+        if (!BoundsAreOrdered(minimum, maximum, path)
+            || !RespectsBounds(defaultValue, minimum, maximum, path)
+            || !BelongsToSeries(series, defaultValue, path))
         {
             return null;
         }
 
-        return name.Length > 0 ? new ParameterDefinition(name, unit, defaultValue, series) : null;
+        return name.Length > 0 && label.Length > 0
+            ? new ParameterDefinition(name, label, tier, unit, defaultValue, minimum, maximum, series)
+            : null;
     }
 
     private string ReadParameterName(JsonElement element, string path)
@@ -269,7 +277,8 @@ internal sealed class ComponentDefinitionReader
 
         Reject(
             JsonPath.Field(path, ComponentFields.Name),
-            "A parameter name must start with a lowercase letter and hold only lowercase letters and digits.");
+            "A parameter name must start with a lowercase letter and hold lowercase words "
+            + "separated by single hyphens.");
 
         return string.Empty;
     }
@@ -297,27 +306,111 @@ internal sealed class ComponentDefinitionReader
         return false;
     }
 
-    private bool TryReadDefaultValue(JsonElement element, string path, Unit unit, out Quantity value)
+    private bool TryReadTier(JsonElement element, string path, out ParameterTier tier)
     {
-        value = default;
+        tier = ParameterTier.Basic;
 
-        var text = ReadRequiredText(element, path, ComponentFields.Default);
+        var name = ReadRequiredText(element, path, ComponentFields.Tier);
 
-        if (text.Length == 0)
+        if (name.Length == 0)
         {
             return false;
         }
 
-        if (Quantity.TryParse(text, unit, out value, out var error))
+        if (ComponentVocabulary.TryTier(name, out tier))
         {
             return true;
         }
 
         Reject(
-            JsonPath.Field(path, ComponentFields.Default),
+            JsonPath.Field(path, ComponentFields.Tier),
+            $"Unknown tier '{name}'. Known tiers are {ComponentVocabulary.TierNames}.");
+
+        return false;
+    }
+
+    private bool TryReadQuantity(
+        JsonElement element, string path, string fieldName, Unit unit, out Quantity? value)
+    {
+        value = null;
+
+        if (!element.TryGetProperty(fieldName, out var field))
+        {
+            return true;
+        }
+
+        if (field.ValueKind != JsonValueKind.String)
+        {
+            Reject(
+                JsonPath.Field(path, fieldName),
+                $"Field '{fieldName}' must be {JsonValueKindNames.Of(JsonValueKind.String)}.");
+
+            return false;
+        }
+
+        var text = field.GetString() ?? string.Empty;
+
+        if (text.Trim().Length == 0)
+        {
+            Reject(JsonPath.Field(path, fieldName), $"Field '{fieldName}' must not be empty.");
+
+            return false;
+        }
+
+        if (Quantity.TryParse(text, unit, out var parsed, out var error))
+        {
+            value = parsed;
+
+            return true;
+        }
+
+        Reject(
+            JsonPath.Field(path, fieldName),
             $"'{text}' is not a valid value for this unit ({error}).");
 
         return false;
+    }
+
+    private bool BoundsAreOrdered(Quantity? minimum, Quantity? maximum, string path)
+    {
+        if (minimum is not { } low || maximum is not { } high || low.Value <= high.Value)
+        {
+            return true;
+        }
+
+        Reject(
+            JsonPath.Field(path, ComponentFields.Minimum),
+            $"The minimum {low} must not be greater than the maximum {high}.");
+
+        return false;
+    }
+
+    private bool RespectsBounds(Quantity? value, Quantity? minimum, Quantity? maximum, string path)
+    {
+        if (value is not { } quantity)
+        {
+            return true;
+        }
+
+        if (minimum is { } low && quantity.Value < low.Value)
+        {
+            Reject(
+                JsonPath.Field(path, ComponentFields.Default),
+                $"The default value {quantity} is below the minimum {low}.");
+
+            return false;
+        }
+
+        if (maximum is { } high && quantity.Value > high.Value)
+        {
+            Reject(
+                JsonPath.Field(path, ComponentFields.Default),
+                $"The default value {quantity} is above the maximum {high}.");
+
+            return false;
+        }
+
+        return true;
     }
 
     private bool TryReadGlobalNet(JsonElement element, string path, out string? globalNet)
@@ -388,16 +481,21 @@ internal sealed class ComponentDefinitionReader
         return false;
     }
 
-    private bool BelongsToSeries(StandardSeries series, Quantity value, string path)
+    private bool BelongsToSeries(StandardSeries? series, Quantity? value, string path)
     {
-        if (value.Value > 0 && ESeries.Contains(series, value.Value))
+        if (series is not { } standard || value is not { } quantity)
+        {
+            return true;
+        }
+
+        if (quantity.Value > 0 && ESeries.Contains(standard, quantity.Value))
         {
             return true;
         }
 
         Reject(
             JsonPath.Field(path, ComponentFields.Default),
-            $"The default value {value} does not belong to series {series}.");
+            $"The default value {quantity} does not belong to series {standard}.");
 
         return false;
     }

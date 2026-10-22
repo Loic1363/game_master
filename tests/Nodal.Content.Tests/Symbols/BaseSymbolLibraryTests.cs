@@ -72,15 +72,6 @@ public class BaseSymbolLibraryTests
         }
     }
 
-    [Theory]
-    [MemberData(nameof(ComponentIds))]
-    public void BaseSymbolCarriesAValueAnchorExactlyWhenItsComponentHasParameters(string componentId)
-    {
-        var symbol = SymbolOf(componentId);
-
-        Assert.Equal(DefinitionOf(componentId).Parameters.Length > 0, symbol.ValueAnchor is not null);
-    }
-
     private static IEnumerable<GridVector> Extremes(SymbolPrimitive primitive)
     {
         switch (primitive)

@@ -9,6 +9,8 @@ public enum EditErrorCode
     UnknownParameter,
     UnitMismatch,
     ValueNotInSeries,
+    ValueOutOfBounds,
+    ParameterIsRequired,
     DiagonalWire,
     ZeroLengthWire,
     DuplicateWire,

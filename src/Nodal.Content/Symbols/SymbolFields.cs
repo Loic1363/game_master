@@ -7,7 +7,6 @@ internal static class SymbolFields
     public const string Component = "component";
     public const string Style = "style";
     public const string Primitives = "primitives";
-    public const string Labels = "labels";
     public const string Type = "type";
     public const string From = "from";
     public const string To = "to";
@@ -24,9 +23,8 @@ internal static class SymbolFields
     public const string SweepDegrees = "sweepDegrees";
     public const string At = "at";
     public const string Value = "value";
-    public const string Designator = "designator";
 
-    public static readonly string[] Root = [SchemaVersion, Kind, Component, Style, Primitives, Labels];
+    public static readonly string[] Root = [SchemaVersion, Kind, Component, Style, Primitives];
 
     public static readonly string[] Line = [Type, From, To];
 
@@ -41,6 +39,4 @@ internal static class SymbolFields
     public static readonly string[] Polygon = [Type, Points, Filled];
 
     public static readonly string[] Text = [Type, At, Value];
-
-    public static readonly string[] Label = [Designator, Value];
 }

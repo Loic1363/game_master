@@ -71,9 +71,8 @@ internal sealed class SymbolReader
         var componentId = ReadComponentId(root);
         var style = ReadStyle(root);
         var primitives = ReadPrimitives(root);
-        TryReadLabels(root, out var designatorAnchor, out var valueAnchor);
 
-        var symbol = new Symbol(componentId, style, primitives, designatorAnchor, valueAnchor);
+        var symbol = new Symbol(componentId, style, primitives);
 
         return _rejected ? null : symbol;
     }
@@ -302,40 +301,6 @@ internal sealed class SymbolReader
         var value = ReadRequiredText(element, path, SymbolFields.Value);
 
         return hasAt && value.Length > 0 ? new SymbolText(at, value) : null;
-    }
-
-    private bool TryReadLabels(JsonElement root, out GridVector designator, out GridVector? value)
-    {
-        designator = GridVector.Zero;
-        value = null;
-
-        if (!TryGetField(root, JsonPath.Root, SymbolFields.Labels, JsonValueKind.Object, out var labels))
-        {
-            return false;
-        }
-
-        var path = JsonPath.Field(JsonPath.Root, SymbolFields.Labels);
-
-        RejectUnknownFields(labels, path, SymbolFields.Label);
-
-        if (!TryReadPoint(labels, path, SymbolFields.Designator, out designator))
-        {
-            return false;
-        }
-
-        if (!labels.TryGetProperty(SymbolFields.Value, out _))
-        {
-            return true;
-        }
-
-        if (!TryReadPoint(labels, path, SymbolFields.Value, out var anchor))
-        {
-            return false;
-        }
-
-        value = anchor;
-
-        return true;
     }
 
     private bool TryReadPoint(JsonElement owner, string ownerPath, string fieldName, out GridVector point)

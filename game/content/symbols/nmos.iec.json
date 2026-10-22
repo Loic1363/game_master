@@ -12,6 +12,5 @@
     { "type": "line", "from": [-0.8, 0.8], "to": [0, 0.8] },
     { "type": "line", "from": [0, 0.8], "to": [0, 2] },
     { "type": "polygon", "points": [[-0.56, 0.8], [-0.24, 0.6], [-0.24, 1]], "filled": true }
-  ],
-  "labels": { "designator": [1.8, 0] }
+  ]
 }

@@ -24,16 +24,16 @@ public static class SymbolExtent
         }
     }
 
-    public static IEnumerable<GridVector> CornersWithLabels(Symbol symbol)
+    public static IEnumerable<GridVector> CornersWithLabels(Symbol symbol, Orientation orientation)
     {
+        ArgumentNullException.ThrowIfNull(symbol);
+
         foreach (var corner in Corners(symbol))
         {
-            yield return corner;
+            yield return SymbolTransform.Apply(corner, orientation);
         }
 
-        yield return symbol.DesignatorAnchor;
-
-        if (symbol.ValueAnchor is { } anchor)
+        foreach (var anchor in LabelPlacement.Anchors(symbol, orientation))
         {
             yield return anchor;
         }

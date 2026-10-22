@@ -17,7 +17,6 @@ internal sealed class SymbolJson
             new("component", Text("widget")),
             new("style", Text("iec")),
             new("primitives", """[{ "type": "line", "from": [-2, 0], "to": [2, 0] }]"""),
-            new("labels", """{ "designator": [0, -1.2], "value": [0, 1.2] }"""),
         ]);
 
     public static string Text(string value) => "\"" + value + "\"";

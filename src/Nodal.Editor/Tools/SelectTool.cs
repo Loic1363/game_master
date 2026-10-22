@@ -13,7 +13,9 @@ internal sealed class SelectTool : IEditorTool
 
     private readonly EditorSession _session;
 
-    private ComponentId? _moving;
+    private ComponentId? _pressed;
+    private bool _moving;
+    private GridVector _pressedAt;
     private GridPoint _grabbedAt;
     private GridPoint _movedTo;
 
@@ -23,49 +25,64 @@ internal sealed class SelectTool : IEditorTool
 
     public string Label => ToolLabel;
 
-    public ComponentGhost? Ghost => _moving is { } id && _session.Schematic.TryGetComponent(id, out var component)
-        ? new ComponentGhost(component.DefinitionId, _movedTo, component.Orientation)
-        : null;
+    public ComponentGhost? Ghost =>
+        _moving && _pressed is { } id && _session.Schematic.TryGetComponent(id, out var component)
+            ? new ComponentGhost(component.DefinitionId, _movedTo, component.Orientation)
+            : null;
 
     public ImmutableArray<WireSegment> Preview => [];
 
     public void PointerMoved(GridVector point)
     {
-        if (_moving is null)
+        if (_pressed is not { } component)
         {
             return;
         }
 
-        _movedTo = Displaced(GridSnap.Nearest(point));
+        if (!_moving)
+        {
+            if ((point - _pressedAt).Length <= _session.DragThreshold)
+            {
+                return;
+            }
+
+            _moving = true;
+        }
+
+        _movedTo = Displaced(component, GridSnap.Nearest(point));
     }
 
     public void PrimaryPressed(GridVector point)
     {
-        var previous = _session.Selection;
         var hit = _session.Pick(point);
 
         _session.Select(SelectionOf(hit));
 
-        if (hit?.Component is { } component
-            && previous.Component == component
-            && _session.Schematic.TryGetComponent(component, out _))
+        _pressed = null;
+        _moving = false;
+
+        if (hit?.Component is { } component && _session.Schematic.TryGetComponent(component, out _))
         {
-            _moving = component;
+            _pressed = component;
+            _pressedAt = point;
             _grabbedAt = GridSnap.Nearest(point);
-            _movedTo = Displaced(_grabbedAt);
+            _movedTo = Displaced(component, _grabbedAt);
         }
     }
 
     public void PrimaryReleased(GridVector point)
     {
-        if (_moving is not { } component)
+        var dragged = _moving ? _pressed : null;
+
+        _pressed = null;
+        _moving = false;
+
+        if (dragged is not { } component)
         {
             return;
         }
 
-        var destination = Displaced(GridSnap.Nearest(point));
-
-        _moving = null;
+        var destination = Displaced(component, GridSnap.Nearest(point));
 
         if (_session.Schematic.TryGetComponent(component, out var instance)
             && instance.Position != destination)
@@ -74,16 +91,39 @@ internal sealed class SelectTool : IEditorTool
         }
     }
 
+    public bool SecondaryPressed(GridVector point)
+    {
+        if (_session.Pick(point)?.Component is not { } component)
+        {
+            return false;
+        }
+
+        Abandon();
+
+        _session.Select(Selection.Of(component));
+        _session.RequestProperties(component);
+
+        return true;
+    }
+
     public void DoubleClicked()
     {
+        Abandon();
+
+        if (_session.Selection.Component is { } component)
+        {
+            _session.RequestProperties(component);
+        }
     }
 
     public bool Cancel()
     {
-        if (_moving is not null)
-        {
-            _moving = null;
+        var wasMoving = _moving;
 
+        Abandon();
+
+        if (wasMoving)
+        {
             return true;
         }
 
@@ -101,6 +141,12 @@ internal sealed class SelectTool : IEditorTool
 
     public void Mirror() => RunOnSelection(id => new MirrorComponent(id));
 
+    private void Abandon()
+    {
+        _pressed = null;
+        _moving = false;
+    }
+
     private void RunOnSelection(Func<ComponentId, IEditCommand> commandOf)
     {
         if (_session.Selection.Component is { } component)
@@ -109,10 +155,9 @@ internal sealed class SelectTool : IEditorTool
         }
     }
 
-    private GridPoint Displaced(GridPoint cursor)
+    private GridPoint Displaced(ComponentId component, GridPoint cursor)
     {
-        if (_moving is not { } component
-            || !_session.Schematic.TryGetComponent(component, out var instance))
+        if (!_session.Schematic.TryGetComponent(component, out var instance))
         {
             return cursor;
         }

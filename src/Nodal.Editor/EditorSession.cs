@@ -13,6 +13,7 @@ namespace Nodal.Editor;
 public sealed class EditorSession
 {
     private const double DefaultHitTolerance = 0.5;
+    private const double DefaultDragThreshold = 0.25;
 
     private readonly EditHistory _history;
     private readonly SymbolLibrary _symbols;
@@ -21,6 +22,7 @@ public sealed class EditorSession
     private Selection _selection = Selection.None;
     private GridPoint _cursor = GridPoint.Origin;
     private double _hitTolerance = DefaultHitTolerance;
+    private double _dragThreshold = DefaultDragThreshold;
 
     public EditorSession(EditHistory history, SymbolLibrary symbols)
     {
@@ -33,6 +35,8 @@ public sealed class EditorSession
     }
 
     public event Action? Changed;
+
+    public event Action<ComponentId>? PropertiesRequested;
 
     public EditHistory History => _history;
 
@@ -58,6 +62,21 @@ public sealed class EditorSession
             }
 
             _hitTolerance = value;
+        }
+    }
+
+    public double DragThreshold
+    {
+        get => _dragThreshold;
+        set
+        {
+            if (!double.IsFinite(value) || value < 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(value), value, "A drag threshold must be finite and not negative.");
+            }
+
+            _dragThreshold = value;
         }
     }
 
@@ -98,9 +117,29 @@ public sealed class EditorSession
         _tool.PrimaryReleased(point);
     }
 
-    public void SecondaryPressed() => Cancel();
+    public void SecondaryPressed(GridVector point)
+    {
+        _cursor = GridSnap.Nearest(point);
+
+        if (_tool.SecondaryPressed(point))
+        {
+            Changed?.Invoke();
+
+            return;
+        }
+
+        Cancel();
+    }
 
     public void DoubleClicked() => _tool.DoubleClicked();
+
+    public void RequestPropertiesForSelection()
+    {
+        if (_selection.Component is { } component)
+        {
+            RequestProperties(component);
+        }
+    }
 
     public void Cancel()
     {
@@ -166,6 +205,8 @@ public sealed class EditorSession
 
     internal SchematicHit? Pick(GridVector point) =>
         SchematicHitTester.Nearest(Schematic, Catalog, _symbols, point, _hitTolerance);
+
+    internal void RequestProperties(ComponentId id) => PropertiesRequested?.Invoke(id);
 
     internal void Select(Selection selection)
     {

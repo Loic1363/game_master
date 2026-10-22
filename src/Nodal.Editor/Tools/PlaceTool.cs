@@ -45,6 +45,8 @@ internal sealed class PlaceTool : IEditorTool
     {
     }
 
+    public bool SecondaryPressed(GridVector point) => false;
+
     public void DoubleClicked()
     {
     }

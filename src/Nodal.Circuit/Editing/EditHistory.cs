@@ -9,6 +9,8 @@ public sealed class EditHistory
     private readonly Stack<HistoryEntry> _undo = new();
     private readonly Stack<HistoryEntry> _redo = new();
 
+    private Schematic _saved;
+
     public EditHistory(Schematic schematic, ComponentCatalog catalog)
     {
         ArgumentNullException.ThrowIfNull(schematic);
@@ -16,6 +18,7 @@ public sealed class EditHistory
 
         Schematic = schematic;
         Catalog = catalog;
+        _saved = schematic;
     }
 
     public event Action? Changed;
@@ -28,9 +31,22 @@ public sealed class EditHistory
 
     public bool CanRedo => _redo.Count > 0;
 
+    public bool IsDirty => !ReferenceEquals(Schematic, _saved);
+
     public string? UndoDescription => CanUndo ? _undo.Peek().Description : null;
 
     public string? RedoDescription => CanRedo ? _redo.Peek().Description : null;
+
+    public void MarkSaved()
+    {
+        if (!IsDirty)
+        {
+            return;
+        }
+
+        _saved = Schematic;
+        Changed?.Invoke();
+    }
 
     public CommandResult Execute(IEditCommand command)
     {

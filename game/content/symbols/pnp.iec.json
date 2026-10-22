@@ -9,6 +9,5 @@
     { "type": "polyline", "points": [[-1, -0.4], [0, -1.2], [0, -2]], "closed": false },
     { "type": "polyline", "points": [[-1, 0.4], [0, 1.2], [0, 2]], "closed": false },
     { "type": "polygon", "points": [[-0.687, -0.65], [-0.225, -0.777], [-0.463, -1.073]], "filled": true }
-  ],
-  "labels": { "designator": [1.8, 0] }
+  ]
 }

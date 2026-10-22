@@ -52,6 +52,55 @@ public class SetParameterTests
     }
 
     [Fact]
+    public void AValueBelowTheMinimumIsRejected()
+    {
+        var schematic = Capacitor(out var id);
+
+        var error = new SetParameter(id, "esr", new Quantity(-1, Unit.Ohm)).Reject(schematic);
+
+        Assert.Equal(EditErrorCode.ValueOutOfBounds, error.Code);
+        Assert.Contains("below the minimum", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AValueAboveTheMaximumIsRejected()
+    {
+        var id = Schematic.Empty.NextComponentId;
+        var catalog = BoundedCatalog();
+        var schematic = new AddComponent("widget", GridPoint.Origin, Orientation.Default)
+            .Succeed(Schematic.Empty, catalog);
+
+        var error = new SetParameter(id, "gain", new Quantity(11, Unit.Dimensionless))
+            .Reject(schematic, catalog);
+
+        Assert.Equal(EditErrorCode.ValueOutOfBounds, error.Code);
+        Assert.Contains("above the maximum", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AValueOnABoundIsAccepted()
+    {
+        var schematic = Capacitor(out var id);
+
+        var updated = new SetParameter(id, "esr", new Quantity(0, Unit.Ohm)).Succeed(schematic);
+
+        Assert.True(updated.TryGetComponent(id, out var component));
+        Assert.Equal(new Quantity(0, Unit.Ohm), component.Parameters["esr"]);
+    }
+
+    [Fact]
+    public void SettingAnOptionalParameterAddsItToTheComponent()
+    {
+        var schematic = Capacitor(out var id);
+
+        var updated = new SetParameter(id, "voltage-rating", new Quantity(16, Unit.Volt))
+            .Succeed(schematic);
+
+        Assert.True(updated.TryGetComponent(id, out var component));
+        Assert.Equal(["capacitance", "voltage-rating"], component.Parameters.Keys);
+    }
+
+    [Fact]
     public void SettingAValueLeavesTheRestOfTheComponentAlone()
     {
         var schematic = Resistor(out var id);
@@ -185,7 +234,20 @@ public class SetParameterTests
             .Succeed(Schematic.Empty);
     }
 
-    private static ComponentCatalog WidgetCatalog() => new([
+    private static Schematic Capacitor(out ComponentId id)
+    {
+        id = Schematic.Empty.NextComponentId;
+
+        return new AddComponent("capacitor", new GridPoint(1, 2), Orientation.Default)
+            .Succeed(Schematic.Empty);
+    }
+
+    private static ComponentCatalog WidgetCatalog() => WidgetCatalog(null, null);
+
+    private static ComponentCatalog BoundedCatalog() => WidgetCatalog(
+        new Quantity(0, Unit.Dimensionless), new Quantity(10, Unit.Dimensionless));
+
+    private static ComponentCatalog WidgetCatalog(Quantity? minimum, Quantity? maximum) => new([
         new ComponentDefinition(
             "widget",
             "Widget",
@@ -193,6 +255,14 @@ public class SetParameterTests
             ComponentCategory.Passive,
             "W",
             [new PinDefinition("1", -1, 0)],
-            [new ParameterDefinition("gain", Unit.Dimensionless, new Quantity(2, Unit.Dimensionless), null)]),
+            [new ParameterDefinition(
+                "gain",
+                "Gain",
+                ParameterTier.Basic,
+                Unit.Dimensionless,
+                new Quantity(2, Unit.Dimensionless),
+                minimum,
+                maximum,
+                null)]),
     ]);
 }

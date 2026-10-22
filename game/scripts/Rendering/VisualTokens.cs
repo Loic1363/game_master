@@ -15,4 +15,6 @@ public static class VisualTokens
     public static Color NetHighlight { get; } = Color.FromHtml("E07A1F");
 
     public static Color Selection { get; } = Color.FromHtml("2F6FDE");
+
+    public static Color Error { get; } = Color.FromHtml("C0392B");
 }

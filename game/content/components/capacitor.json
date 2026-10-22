@@ -11,6 +11,12 @@
     { "name": "2", "x": 2, "y": 0 }
   ],
   "parameters": [
-    { "name": "capacitance", "unit": "farad", "default": "100n", "series": "E12" }
+    { "name": "capacitance", "label": "Capacitance", "tier": "basic", "unit": "farad", "default": "100n", "series": "E12" },
+    { "name": "voltage-rating", "label": "Voltage rating", "tier": "advanced", "unit": "volt", "min": "0" },
+    { "name": "rms-current-rating", "label": "RMS current rating", "tier": "advanced", "unit": "ampere", "min": "0" },
+    { "name": "esr", "label": "Equivalent series resistance", "tier": "advanced", "unit": "ohm", "min": "0" },
+    { "name": "esl", "label": "Equivalent series inductance", "tier": "advanced", "unit": "henry", "min": "0" },
+    { "name": "parallel-resistance", "label": "Equivalent parallel resistance", "tier": "advanced", "unit": "ohm", "min": "0" },
+    { "name": "parallel-capacitance", "label": "Equivalent parallel capacitance", "tier": "advanced", "unit": "farad", "min": "0" }
   ]
 }

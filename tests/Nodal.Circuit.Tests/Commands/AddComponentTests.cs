@@ -26,7 +26,7 @@ public class AddComponentTests
     }
 
     [Fact]
-    public void AddingSeedsEveryParameterWithItsDefault()
+    public void AddingSeedsEveryRequiredParameterWithItsDefault()
     {
         var schematic = new AddComponent("resistor", GridPoint.Origin, Orientation.Default)
             .Succeed(Schematic.Empty);
@@ -35,6 +35,19 @@ public class AddComponentTests
         var parameter = Assert.Single(component.Parameters);
         Assert.Equal("resistance", parameter.Key);
         Assert.Equal(new Quantity(1000, Unit.Ohm), parameter.Value);
+    }
+
+    [Fact]
+    public void AddingLeavesOptionalParametersUnset()
+    {
+        var schematic = new AddComponent("capacitor", GridPoint.Origin, Orientation.Default)
+            .Succeed(Schematic.Empty);
+
+        var component = Assert.Single(schematic.Components.Values);
+
+        Assert.True(BaseCatalog.Catalog.TryGetById("capacitor", out var definition));
+        Assert.Equal(7, definition.Parameters.Length);
+        Assert.Equal(["capacitance"], component.Parameters.Keys);
     }
 
     [Fact]

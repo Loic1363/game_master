@@ -168,19 +168,6 @@ public class SelectionTests
     }
 
     [Fact]
-    public void AFirstClickSelectsWithoutMoving()
-    {
-        var session = Sessions.Of(Schematic.Empty.Add("resistor", 0, 0));
-
-        session.PrimaryPressed(new GridVector(0, 0));
-        session.PointerMoved(new GridVector(5, 5));
-        session.PrimaryReleased(new GridVector(5, 5));
-
-        Assert.Equal(GridPoint.Origin, session.Component(1).Position);
-        Assert.Equal(ComponentId.First, session.Selection.Component);
-    }
-
-    [Fact]
     public void WiresDoNotFollowAMovedComponent()
     {
         var session = Sessions.Of(Schematic.Empty.Add("resistor", 0, 0).Wire(-2, 0, -6, 0));

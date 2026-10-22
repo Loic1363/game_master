@@ -11,6 +11,7 @@
     { "name": "2", "x": 2, "y": 0 }
   ],
   "parameters": [
-    { "name": "resistance", "unit": "ohm", "default": "1k", "series": "E24" }
+    { "name": "resistance", "label": "Resistance", "tier": "basic", "unit": "ohm", "default": "1k", "series": "E24" },
+    { "name": "power-rating", "label": "Power rating", "tier": "advanced", "unit": "watt", "min": "0" }
   ]
 }

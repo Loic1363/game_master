@@ -19,6 +19,8 @@ internal interface IEditorTool
 
     void PrimaryReleased(GridVector point);
 
+    bool SecondaryPressed(GridVector point);
+
     void DoubleClicked();
 
     bool Cancel();
