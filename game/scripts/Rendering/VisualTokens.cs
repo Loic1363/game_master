@@ -17,4 +17,6 @@ public static class VisualTokens
     public static Color Selection { get; } = Color.FromHtml("2F6FDE");
 
     public static Color Error { get; } = Color.FromHtml("C0392B");
+
+    public static Color LabelPill { get; } = Color.FromHtml("FFFDF8E6");
 }

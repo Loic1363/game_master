@@ -51,6 +51,7 @@ public sealed class EditorMenus
         BuildEdit(bar);
         BuildView(bar);
         BuildPlace(bar);
+        BuildSimulate(bar);
         BuildHelp(bar);
     }
 
@@ -143,6 +144,17 @@ public sealed class EditorMenus
             submenu.IdPressed += OnPlacementPressed;
             menu.AddSubmenuNodeItem(category.ToString(), submenu);
         }
+    }
+
+    private void BuildSimulate(MenuBar bar)
+    {
+        var menu = AddMenu(bar, "Simulate");
+
+        AddCommand(
+            menu,
+            "DC operating point",
+            EditorCommand.SimulateDcOperatingPoint,
+            EditorAction.DcOperatingPoint);
     }
 
     private void BuildHelp(MenuBar bar)

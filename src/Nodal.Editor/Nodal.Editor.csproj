@@ -10,6 +10,7 @@
     <ProjectReference Include="..\Nodal.Foundation\Nodal.Foundation.csproj" />
     <ProjectReference Include="..\Nodal.Content\Nodal.Content.csproj" />
     <ProjectReference Include="..\Nodal.Circuit\Nodal.Circuit.csproj" />
+    <ProjectReference Include="..\Nodal.Simulation\Nodal.Simulation.csproj" />
   </ItemGroup>
 
 </Project>

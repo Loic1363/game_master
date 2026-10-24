@@ -14,6 +14,31 @@ public static class CanvasText
         CanvasItem canvas, Font font, Vector2 center, string text, int fontSize, Color color) =>
         DrawAligned(canvas, font, center, LabelAlignment.Centered, text, fontSize, color);
 
+    public static void DrawPill(
+        CanvasItem canvas,
+        Font font,
+        Vector2 center,
+        string text,
+        int fontSize,
+        Color background,
+        Color foreground)
+    {
+        ArgumentNullException.ThrowIfNull(canvas);
+        ArgumentNullException.ThrowIfNull(font);
+
+        var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, fontSize);
+        var half = new Vector2(
+            (size.X / 2f) + CanvasMetrics.PillPaddingX,
+            (size.Y / 2f) + CanvasMetrics.PillPaddingY);
+        var box = new Rect2(center - half, half * 2f);
+
+        canvas.DrawRect(box, background);
+        canvas.DrawCircle(new Vector2(box.Position.X, center.Y), half.Y, background);
+        canvas.DrawCircle(new Vector2(box.End.X, center.Y), half.Y, background);
+
+        DrawCentered(canvas, font, center, text, fontSize, foreground);
+    }
+
     public static void DrawAligned(
         CanvasItem canvas,
         Font font,

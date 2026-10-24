@@ -18,6 +18,7 @@ public enum EditorCommand
     ViewZoomOut,
     ViewFit,
     ViewShowGrid,
+    SimulateDcOperatingPoint,
     HelpShortcuts,
     HelpAbout,
 }

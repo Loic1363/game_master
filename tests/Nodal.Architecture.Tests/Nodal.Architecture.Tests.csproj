@@ -22,6 +22,7 @@
     <ProjectReference Include="..\..\src\Nodal.Foundation\Nodal.Foundation.csproj" />
     <ProjectReference Include="..\..\src\Nodal.Content\Nodal.Content.csproj" />
     <ProjectReference Include="..\..\src\Nodal.Circuit\Nodal.Circuit.csproj" />
+    <ProjectReference Include="..\..\src\Nodal.Simulation\Nodal.Simulation.csproj" />
     <ProjectReference Include="..\..\src\Nodal.Editor\Nodal.Editor.csproj" />
   </ItemGroup>
 

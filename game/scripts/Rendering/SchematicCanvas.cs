@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Godot;
 using Nodal.Circuit.Connectivity;
 using Nodal.Circuit.Geometry;
@@ -6,7 +7,9 @@ using Nodal.Circuit.Schematics;
 using Nodal.Circuit.Symbols;
 using Nodal.Content.Symbols;
 using Nodal.Editor;
+using Nodal.Editor.Simulation;
 using Nodal.Foundation.Geometry;
+using Nodal.Simulation.Dc;
 
 namespace Nodal.Game.Rendering;
 
@@ -17,13 +20,18 @@ public partial class SchematicCanvas : Control
     private EditorSession? _session;
     private SymbolLibrary _symbols = SymbolLibrary.Empty;
     private ConnectivityResult? _connectivity;
+    private OperatingPoint? _operatingPoint;
+    private ImmutableArray<NetVoltageLabel> _voltageLabels = [];
     private Net? _hoveredNet;
+    private ComponentId? _hoveredComponent;
     private Font? _font;
     private Vector2? _pointer;
     private bool _panning;
     private bool _fitted;
 
     public event Action<Net?>? HoveredNetChanged;
+
+    public event Action<ComponentId?>? HoveredComponentChanged;
 
     public event Action? ViewChanged;
 
@@ -50,7 +58,10 @@ public partial class SchematicCanvas : Control
         _symbols = symbols;
         _connectivity = connectivity;
         _hoveredNet = null;
+        _hoveredComponent = null;
         _fitted = false;
+
+        ClearOperatingPoint();
 
         FitToSchematic();
         QueueRedraw();
@@ -64,6 +75,27 @@ public partial class SchematicCanvas : Control
         _hoveredNet = null;
 
         RefreshPointer();
+        QueueRedraw();
+    }
+
+    public void ShowOperatingPoint(OperatingPoint operatingPoint)
+    {
+        ArgumentNullException.ThrowIfNull(operatingPoint);
+
+        _operatingPoint = operatingPoint;
+        _voltageLabels = _session is null || _connectivity is null
+            ? []
+            : OperatingPointOverlay.Labels(
+                _session.Schematic, _session.Catalog, _connectivity, operatingPoint);
+
+        QueueRedraw();
+    }
+
+    public void ClearOperatingPoint()
+    {
+        _operatingPoint = null;
+        _voltageLabels = [];
+
         QueueRedraw();
     }
 
@@ -120,6 +152,7 @@ public partial class SchematicCanvas : Control
         DrawGhost(view);
         DrawWirePreview(view);
         DrawLabels(_session);
+        DrawVoltageLabels();
     }
 
     public override void _GuiInput(InputEvent @event)
@@ -152,6 +185,7 @@ public partial class SchematicCanvas : Control
         _pointer = null;
 
         SetHoveredNet(null);
+        SetHoveredComponent(null);
     }
 
     private void HandleButton(InputEventMouseButton button)
@@ -257,6 +291,7 @@ public partial class SchematicCanvas : Control
         _session.PointerMoved(_camera.ToGrid(position));
 
         SetHoveredNet(NetUnder(position));
+        SetHoveredComponent(ComponentUnder(position));
         Report();
     }
 
@@ -283,6 +318,21 @@ public partial class SchematicCanvas : Control
             CanvasMetrics.HoverTolerancePixels / _camera.PixelsPerGridUnit);
 
         return NetOf(hit);
+    }
+
+    private ComponentId? ComponentUnder(Vector2 position)
+    {
+        if (_session is null)
+        {
+            return null;
+        }
+
+        return SchematicHitTester.Nearest(
+            _session.Schematic,
+            _session.Catalog,
+            _symbols,
+            _camera.ToGrid(position),
+            CanvasMetrics.HoverTolerancePixels / _camera.PixelsPerGridUnit)?.Component;
     }
 
     private Net? NetOf(SchematicHit? hit)
@@ -316,6 +366,17 @@ public partial class SchematicCanvas : Control
         HoveredNetChanged?.Invoke(net);
 
         QueueRedraw();
+    }
+
+    private void SetHoveredComponent(ComponentId? component)
+    {
+        if (component == _hoveredComponent)
+        {
+            return;
+        }
+
+        _hoveredComponent = component;
+        HoveredComponentChanged?.Invoke(component);
     }
 
     private void Report()
@@ -359,7 +420,7 @@ public partial class SchematicCanvas : Control
                     symbol,
                     component.Position,
                     component.Orientation,
-                    VisualTokens.Stroke);
+                    StrokeOf(component.Id));
             }
         }
     }
@@ -371,6 +432,9 @@ public partial class SchematicCanvas : Control
             DrawWire(wire, VisualTokens.Stroke);
         }
     }
+
+    private Color StrokeOf(ComponentId id) =>
+        _operatingPoint?.HasRatingWarning(id) == true ? VisualTokens.Error : VisualTokens.Stroke;
 
     private void DrawWire(Wire wire, Color color) => DrawLine(
         _camera.ToScreen(wire.Start), _camera.ToScreen(wire.End), color, CanvasMetrics.StrokeWidth);
@@ -561,6 +625,23 @@ public partial class SchematicCanvas : Control
         return component.Parameters.TryGetValue(required.Name, out var quantity)
             ? quantity.ToString()
             : null;
+    }
+
+    private void DrawVoltageLabels()
+    {
+        var fontSize = CanvasText.FontSize(_camera.Zoom);
+
+        foreach (var label in _voltageLabels)
+        {
+            CanvasText.DrawPill(
+                this,
+                Font,
+                _camera.ToScreen(label.Position),
+                label.Text,
+                fontSize,
+                VisualTokens.LabelPill,
+                VisualTokens.LabelText);
+        }
     }
 
     private Vector2 Screen(GridPoint position, GridVector local) =>

@@ -10,77 +10,88 @@ public class SchematicFileRepairTests
     private const string Resistance = "resistance";
     private const string PowerRating = "power-rating";
 
-    public static TheoryData<string, string, string> RepairedFiles
+    public static TheoryData<string, string, string?, string> RepairedFiles
     {
         get
         {
-            var data = new TheoryData<string, string, string>();
+            var data = new TheoryData<string, string, string?, string>();
 
             Add(
                 data,
                 Resistor("""{ "resistance": 1000, "resistence": 5 }"""),
                 "$.components[0].parameters.resistence",
-                "Unknown parameter 'resistence' was dropped.");
+                "R1",
+                "unknown parameter 'resistence' was dropped.");
 
             Add(
                 data,
                 Resistor("{}"),
                 "$.components[0].parameters.resistance",
-                "Required parameter 'resistance' was missing and was set to the default 1 k");
+                "R1",
+                "resistance was missing; set to the default 1 k");
 
             Add(
                 data,
                 Resistor("""{ "resistance": 1234 }"""),
                 "$.components[0].parameters.resistance",
-                "does not belong to series E24. The value was reset to the default 1 k");
+                "R1",
+                "resistance 1.23 k\u03a9 is not in E24; reset to 1 k");
 
             Add(
                 data,
                 Resistor("""{ "resistance": "1k" }"""),
                 "$.components[0].parameters.resistance",
-                "must be a number. The value was reset to the default 1 k");
+                "R1",
+                "resistance must be a number; reset to 1 k");
 
             Add(
                 data,
                 Resistor("""{ "resistance": 1e999 }"""),
                 "$.components[0].parameters.resistance",
-                "must be a finite number. The value was reset to the default 1 k");
+                "R1",
+                "resistance must be a finite number; reset to 1 k");
 
             Add(
                 data,
                 Resistor("""{ "resistance": 1000, "power-rating": -1 }"""),
                 "$.components[0].parameters.power-rating",
-                "is below the minimum 0 W of 'power-rating'. The value was unset.");
+                "R1",
+                "power-rating -1 W is below the minimum 0 W; unset.");
 
             Add(
                 data,
                 Resistor("""{ "resistance": 1000, "power-rating": 1e999 }"""),
                 "$.components[0].parameters.power-rating",
-                "must be a finite number. The value was unset.");
+                "R1",
+                "power-rating must be a finite number; unset.");
 
             Add(
                 data,
                 Resistor("""{ "resistance": 1000, "power-rating": true }"""),
                 "$.components[0].parameters.power-rating",
-                "must be a number. The value was unset.");
+                "R1",
+                "power-rating must be a number; unset.");
 
             Add(
                 data,
                 SchematicJson.Single("flux-capacitor", "X1", """{ "resistance": 1000 }"""),
                 "$.components[0].parameters.resistance",
-                "The component definition 'flux-capacitor' is unknown, so the stored value 1000 "
+                "X1",
+                "the definition 'flux-capacitor' is unknown, so the stored value 1000 "
                 + "of 'resistance' was dropped.");
 
             Add(
                 data,
                 SchematicJson.Valid().With("extra", "true"),
                 "$.extra",
-                "Unknown field 'extra' was ignored.");
+                null,
+                "unknown field 'extra' was ignored.");
 
             Add(
                 data,
                 SchematicJson.Valid().With("createdWith", "7"),
                 "$.createdWith",
+                null,
                 "should be a string. It was ignored.");
 
             Add(
@@ -95,7 +106,8 @@ public class SchematicFileRepairTests
                     ]
                     """),
                 "$.components[0].colour",
-                "Unknown field 'colour' was ignored.");
+                "R1",
+                "unknown field 'colour' was ignored.");
 
             Add(
                 data,
@@ -103,41 +115,46 @@ public class SchematicFileRepairTests
                     "wires",
                     """[{ "id": 1, "from": [0, 2], "to": [0, 4], "style": "thick" }]"""),
                 "$.wires[0].style",
-                "Unknown field 'style' was ignored.");
+                null,
+                "unknown field 'style' was ignored.");
 
             return data;
         }
     }
 
-    public static TheoryData<string, string, string> RepairedWidgetFiles
+    public static TheoryData<string, string, string?, string> RepairedWidgetFiles
     {
         get
         {
-            var data = new TheoryData<string, string, string>();
+            var data = new TheoryData<string, string, string?, string>();
 
             Add(
                 data,
                 Widget("""{ "level": 99 }"""),
                 "$.components[0].parameters.level",
-                "is above the maximum 10 V of 'level'. The value was reset to the default 5 V.");
+                "W1",
+                "level 99 V is above the maximum 10 V; reset to 5 V.");
 
             Add(
                 data,
                 Widget("""{ "level": -1 }"""),
                 "$.components[0].parameters.level",
-                "is below the minimum 0 V of 'level'. The value was reset to the default 5 V.");
+                "W1",
+                "level -1 V is below the minimum 0 V; reset to 5 V.");
 
             Add(
                 data,
                 Widget("""{ "level": 5, "trim": 99 }"""),
                 "$.components[0].parameters.trim",
-                "is above the maximum 10 V of 'trim'. The value was unset.");
+                "W1",
+                "trim 99 V is above the maximum 10 V; unset.");
 
             Add(
                 data,
                 Widget("""{ "level": 5, "tuned": 1.23 }"""),
                 "$.components[0].parameters.tuned",
-                "does not belong to series E12. The value was unset.");
+                "W1",
+                "tuned 1.23 \u03a9 is not in E12; unset.");
 
             return data;
         }
@@ -145,16 +162,38 @@ public class SchematicFileRepairTests
 
     [Theory]
     [MemberData(nameof(RepairedFiles))]
-    public void ARepairableFileLoadsWithAWarning(string text, string path, string messagePart)
+    public void ARepairableFileLoadsWithAWarning(
+        string text, string path, string? subject, string messagePart)
     {
-        AssertRepaired(SchematicFile.Read(text, BaseCatalog.Catalog), path, messagePart);
+        AssertRepaired(SchematicFile.Read(text, BaseCatalog.Catalog), path, subject, messagePart);
     }
 
     [Theory]
     [MemberData(nameof(RepairedWidgetFiles))]
-    public void ABoundedParameterIsRepairedWithAWarning(string text, string path, string messagePart)
+    public void ABoundedParameterIsRepairedWithAWarning(
+        string text, string path, string? subject, string messagePart)
     {
-        AssertRepaired(SchematicFile.Read(text, WidgetCatalog.Catalog), path, messagePart);
+        AssertRepaired(SchematicFile.Read(text, WidgetCatalog.Catalog), path, subject, messagePart);
+    }
+
+    [Fact]
+    public void AComponentWarningIsLocatedByItsDesignator()
+    {
+        var warning = Read(Resistor("""{ "resistance": 1234 }""")).Warnings.Single();
+
+        Assert.Equal("R1", warning.Location);
+        Assert.Equal("R1", warning.Subject);
+    }
+
+    [Fact]
+    public void AStructuralWarningKeepsItsPath()
+    {
+        var warning = SchematicFile
+            .Read(SchematicJson.Valid().With("extra", "true").ToString(), BaseCatalog.Catalog)
+            .Warnings.Single();
+
+        Assert.Null(warning.Subject);
+        Assert.Equal("$.extra", warning.Location);
     }
 
     [Fact]
@@ -240,19 +279,25 @@ public class SchematicFileRepairTests
         Assert.Single(result.Warnings);
     }
 
-    private static void AssertRepaired(SchematicReadResult result, string path, string messagePart)
+    private static void AssertRepaired(
+        SchematicReadResult result, string path, string? subject, string messagePart)
     {
         Assert.True(result.Loaded);
         Assert.Contains(
             result.Diagnostics,
             diagnostic => diagnostic.Severity == SchematicSeverity.Warning
                 && diagnostic.Path == path
+                && diagnostic.Subject == subject
                 && diagnostic.Message.Contains(messagePart, StringComparison.Ordinal));
     }
 
     private static void Add(
-        TheoryData<string, string, string> data, SchematicJson json, string path, string messagePart) =>
-        data.Add(json.ToString(), path, messagePart);
+        TheoryData<string, string, string?, string> data,
+        SchematicJson json,
+        string path,
+        string? subject,
+        string messagePart) =>
+        data.Add(json.ToString(), path, subject, messagePart);
 
     private static SchematicJson Resistor(string parameters) =>
         SchematicJson.Single("resistor", "R1", parameters);

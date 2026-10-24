@@ -1,12 +1,18 @@
-namespace Nodal.Circuit.Connectivity;
+namespace Nodal.Foundation.Collections;
 
-internal sealed class DisjointSet
+public sealed class DisjointSet
 {
     private readonly int[] _parent;
     private readonly int[] _size;
 
     public DisjointSet(int count)
     {
+        if (count < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(count), count, "A disjoint set cannot hold a negative number of elements.");
+        }
+
         _parent = new int[count];
         _size = new int[count];
 
@@ -17,8 +23,12 @@ internal sealed class DisjointSet
         }
     }
 
+    public int Count => _parent.Length;
+
     public int Find(int index)
     {
+        RequireMember(index);
+
         while (_parent[index] != index)
         {
             _parent[index] = _parent[_parent[index]];
@@ -45,5 +55,16 @@ internal sealed class DisjointSet
 
         _parent[rightRoot] = leftRoot;
         _size[leftRoot] += _size[rightRoot];
+    }
+
+    public bool AreJoined(int left, int right) => Find(left) == Find(right);
+
+    private void RequireMember(int index)
+    {
+        if (index < 0 || index >= _parent.Length)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(index), index, $"A disjoint set of {_parent.Length} elements has no such element.");
+        }
     }
 }

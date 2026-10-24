@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Nodal.Circuit.Geometry;
 using Nodal.Circuit.Schematics;
 using Nodal.Content.Components;
+using Nodal.Foundation.Collections;
 
 namespace Nodal.Circuit.Connectivity;
 

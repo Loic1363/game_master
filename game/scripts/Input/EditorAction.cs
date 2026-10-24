@@ -18,6 +18,7 @@ public static class EditorAction
     public const string Undo = "nodal_undo";
     public const string Redo = "nodal_redo";
     public const string Cancel = "nodal_cancel";
+    public const string DcOperatingPoint = "nodal_dc_operating_point";
     public const string Fit = "nodal_fit";
     public const string ZoomIn = "nodal_zoom_in";
     public const string ZoomOut = "nodal_zoom_out";

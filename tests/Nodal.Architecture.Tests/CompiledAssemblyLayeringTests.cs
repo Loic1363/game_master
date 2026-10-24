@@ -8,6 +8,7 @@ public class CompiledAssemblyLayeringTests
     [InlineData(CoreLayers.Foundation)]
     [InlineData(CoreLayers.Content)]
     [InlineData(CoreLayers.Circuit)]
+    [InlineData(CoreLayers.Simulation)]
     [InlineData(CoreLayers.Editor)]
     public void CoreAssemblyReferencesNoGodotAssembly(string layerName)
     {
@@ -22,6 +23,7 @@ public class CompiledAssemblyLayeringTests
     [InlineData(CoreLayers.Foundation)]
     [InlineData(CoreLayers.Content)]
     [InlineData(CoreLayers.Circuit)]
+    [InlineData(CoreLayers.Simulation)]
     [InlineData(CoreLayers.Editor)]
     public void CoreAssemblyReferencesOnlyAllowedNodalAssemblies(string layerName)
     {

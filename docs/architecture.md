@@ -11,7 +11,7 @@ Bottom to top. A layer may only depend on layers below it. Nothing reaches upwar
 | Content | `src/Nodal.Content` | Loading and validating versioned data files. |
 | Circuit | `src/Nodal.Circuit` | Schematic model, undoable commands, schematic-to-netlist compilation. |
 | Editor | `src/Nodal.Editor` | Editing tools, editor session and wire routing, pure .NET. |
-| Simulation | later | Numerical solver driven by a netlist. |
+| Simulation | `src/Nodal.Simulation` | Analyses on the netlist, pure .NET: DC operating point today, transient later. |
 | Characterization | later | Measuring a validated circuit so it can become a reusable chip. |
 | Assembly | later | Assembler and machine model for player-built CPUs. |
 | Gameplay | later | Game flow, objectives, progression, scoring. |
@@ -28,7 +28,8 @@ assemblies and the project files, so an unused reference cannot slip through.
   the only input the simulator ever sees. This mirrors KiCad, where the netlist is the artifact
   that carries a schematic between tools.
 - **The simulation runs on its own thread.** It receives commands and publishes snapshots and
-  waveforms. The UI never blocks on the solver, and the solver never touches scene nodes.
+  waveforms. The UI never blocks on the solver, and the solver never touches scene nodes. The DC
+  operating point is short enough to run on the UI thread for now, per ADR-0018.
 - **Every editor action is an undoable command.** Placing a component, moving a wire and editing
   a value are all commands with an inverse.
 - **Editor interaction is engine-free.** The tool state machine, the editor session and wire

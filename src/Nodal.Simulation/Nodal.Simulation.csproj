@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(NodalTargetFramework)</TargetFramework>
+    <RootNamespace>Nodal.Simulation</RootNamespace>
+    <AssemblyName>Nodal.Simulation</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nodal.Foundation\Nodal.Foundation.csproj" />
+    <ProjectReference Include="..\Nodal.Content\Nodal.Content.csproj" />
+    <ProjectReference Include="..\Nodal.Circuit\Nodal.Circuit.csproj" />
+  </ItemGroup>
+
+</Project>

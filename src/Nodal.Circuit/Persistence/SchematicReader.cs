@@ -170,16 +170,18 @@ internal sealed class SchematicReader
             return null;
         }
 
-        WarnUnknownFields(element, path, SchematicFields.Component);
+        var designator = ReadRequiredText(element, path, SchematicFields.Designator);
+        var subject = designator.Length > 0 ? designator : null;
+
+        WarnUnknownFields(element, path, SchematicFields.Component, subject);
 
         var hasId = TryReadIdentifier(element, path, SchematicFields.Id, out var id);
         var definitionId = ReadRequiredText(element, path, SchematicFields.Definition);
-        var designator = ReadRequiredText(element, path, SchematicFields.Designator);
         var hasX = TryReadInteger(element, path, SchematicFields.X, out var x);
         var hasY = TryReadInteger(element, path, SchematicFields.Y, out var y);
         var hasRotation = TryReadRotation(element, path, out var rotation);
         var hasMirrored = TryReadMirrored(element, path, out var mirrored);
-        var parameters = ReadParameters(element, path, definitionId);
+        var parameters = ReadParameters(element, path, definitionId, subject);
 
         return hasId && definitionId.Length > 0 && designator.Length > 0 && hasX && hasY
             && hasRotation && hasMirrored
@@ -194,14 +196,16 @@ internal sealed class SchematicReader
     }
 
     private ImmutableSortedDictionary<string, Quantity> ReadParameters(
-        JsonElement element, string path, string definitionId)
+        JsonElement element, string path, string definitionId, string? subject)
     {
         var parametersPath = JsonPath.Field(path, SchematicFields.Parameters);
         var known = _catalog.TryGetById(definitionId, out var definition);
 
         if (!element.TryGetProperty(SchematicFields.Parameters, out var field))
         {
-            return known ? WithMissingDefaults(NoParameters, definition!, parametersPath) : NoParameters;
+            return known
+                ? WithMissingDefaults(NoParameters, definition!, parametersPath, subject)
+                : NoParameters;
         }
 
         if (field.ValueKind != JsonValueKind.Object)
@@ -216,15 +220,21 @@ internal sealed class SchematicReader
 
         if (!known)
         {
-            return DroppedParameters(field, parametersPath, definitionId);
+            return DroppedParameters(field, parametersPath, definitionId, subject);
         }
 
         return WithMissingDefaults(
-            ReadKnownParameters(field, parametersPath, definition!), definition!, parametersPath);
+            ReadKnownParameters(field, parametersPath, definition!, subject),
+            definition!,
+            parametersPath,
+            subject);
     }
 
     private ImmutableSortedDictionary<string, Quantity> ReadKnownParameters(
-        JsonElement parameters, string parametersPath, ComponentDefinition definition)
+        JsonElement parameters,
+        string parametersPath,
+        ComponentDefinition definition,
+        string? subject)
     {
         var values = NoParameters;
 
@@ -235,7 +245,7 @@ internal sealed class SchematicReader
 
             if (parameter is null)
             {
-                Warn(valuePath, $"Unknown parameter '{property.Name}' was dropped.");
+                Warn(valuePath, subject, $"unknown parameter '{property.Name}' was dropped.");
 
                 continue;
             }
@@ -251,12 +261,12 @@ internal sealed class SchematicReader
 
             if (parameter.Default is { } fallback)
             {
-                Warn(valuePath, $"{problem} The value was reset to the default {fallback}.");
+                Warn(valuePath, subject, $"{problem}; reset to {fallback}.");
                 values = values.SetItem(parameter.Name, fallback);
             }
             else
             {
-                Warn(valuePath, $"{problem} The value was unset.");
+                Warn(valuePath, subject, $"{problem}; unset.");
             }
         }
 
@@ -264,13 +274,14 @@ internal sealed class SchematicReader
     }
 
     private ImmutableSortedDictionary<string, Quantity> DroppedParameters(
-        JsonElement parameters, string parametersPath, string definitionId)
+        JsonElement parameters, string parametersPath, string definitionId, string? subject)
     {
         foreach (var property in parameters.EnumerateObject())
         {
             Warn(
                 JsonPath.Field(parametersPath, property.Name),
-                $"The component definition '{definitionId}' is unknown, so the stored value "
+                subject,
+                $"the definition '{definitionId}' is unknown, so the stored value "
                 + $"{property.Value.GetRawText()} of '{property.Name}' was dropped.");
         }
 
@@ -280,7 +291,8 @@ internal sealed class SchematicReader
     private ImmutableSortedDictionary<string, Quantity> WithMissingDefaults(
         ImmutableSortedDictionary<string, Quantity> values,
         ComponentDefinition definition,
-        string parametersPath)
+        string parametersPath,
+        string? subject)
     {
         foreach (var parameter in definition.Parameters)
         {
@@ -291,8 +303,8 @@ internal sealed class SchematicReader
 
             Warn(
                 JsonPath.Field(parametersPath, parameter.Name),
-                $"Required parameter '{parameter.Name}' was missing and was set to the "
-                + $"default {fallback}.");
+                subject,
+                $"{parameter.Name} was missing; set to the default {fallback}.");
 
             values = values.SetItem(parameter.Name, fallback);
         }
@@ -307,30 +319,29 @@ internal sealed class SchematicReader
 
         if (element.ValueKind != JsonValueKind.Number)
         {
-            return $"Parameter '{parameter.Name}' must be "
-                + $"{JsonValueKindNames.Of(JsonValueKind.Number)}.";
+            return $"{parameter.Name} must be {JsonValueKindNames.Of(JsonValueKind.Number)}";
         }
 
         if (!element.TryGetDouble(out var number) || !double.IsFinite(number))
         {
-            return $"Parameter '{parameter.Name}' must be a finite number.";
+            return $"{parameter.Name} must be a finite number";
         }
 
         value = new Quantity(number, parameter.Unit);
 
         if (parameter.Minimum is { } minimum && number < minimum.Value)
         {
-            return $"{value} is below the minimum {minimum} of '{parameter.Name}'.";
+            return $"{parameter.Name} {value} is below the minimum {minimum}";
         }
 
         if (parameter.Maximum is { } maximum && number > maximum.Value)
         {
-            return $"{value} is above the maximum {maximum} of '{parameter.Name}'.";
+            return $"{parameter.Name} {value} is above the maximum {maximum}";
         }
 
         if (parameter.Series is { } series && !BelongsToSeries(series, number))
         {
-            return $"{value} does not belong to series {series}.";
+            return $"{parameter.Name} {value} is not in {series}";
         }
 
         return null;
@@ -602,13 +613,20 @@ internal sealed class SchematicReader
         return false;
     }
 
-    private void WarnUnknownFields(JsonElement element, string path, string[] knownFields)
+    private void WarnUnknownFields(JsonElement element, string path, string[] knownFields) =>
+        WarnUnknownFields(element, path, knownFields, null);
+
+    private void WarnUnknownFields(
+        JsonElement element, string path, string[] knownFields, string? subject)
     {
         foreach (var property in element.EnumerateObject())
         {
             if (!knownFields.Contains(property.Name, StringComparer.Ordinal))
             {
-                Warn(JsonPath.Field(path, property.Name), $"Unknown field '{property.Name}' was ignored.");
+                Warn(
+                    JsonPath.Field(path, property.Name),
+                    subject,
+                    $"unknown field '{property.Name}' was ignored.");
             }
         }
     }
@@ -659,6 +677,8 @@ internal sealed class SchematicReader
         _diagnostics.Add(SchematicDiagnostic.Error(path, message));
     }
 
-    private void Warn(string path, string message) =>
-        _diagnostics.Add(SchematicDiagnostic.Warning(path, message));
+    private void Warn(string path, string message) => Warn(path, null, message);
+
+    private void Warn(string path, string? subject, string message) =>
+        _diagnostics.Add(SchematicDiagnostic.Warning(path, subject, message));
 }

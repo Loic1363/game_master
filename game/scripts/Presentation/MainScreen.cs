@@ -9,10 +9,13 @@ using Nodal.Circuit.Schematics;
 using Nodal.Content.Components;
 using Nodal.Content.Symbols;
 using Nodal.Editor;
+using Nodal.Editor.Simulation;
 using Nodal.Foundation;
 using Nodal.Game.Adapters;
 using Nodal.Game.Input;
 using Nodal.Game.Rendering;
+using Nodal.Simulation.Dc;
+using Nodal.Simulation.Diagnostics;
 
 namespace Nodal.Game.Presentation;
 
@@ -42,6 +45,10 @@ public partial class MainScreen : Control
     private const string OpenFailedTitle = "The file could not be opened";
     private const string SaveFailedTitle = "The file could not be saved";
     private const string RepairedTitle = "The file was repaired";
+    private const string DcRefusedTitle = "The DC analysis was refused";
+    private const string RatingWarningsTitle = "Rating warnings";
+    private const string DcSolvedText = "DC: solved";
+    private const string DcNotRunText = "DC: not run";
     private const string MoreSuffix = " more";
     private const int MaximumListedLines = 20;
 
@@ -61,7 +68,10 @@ public partial class MainScreen : Control
     private FileDialog? _saveDialog;
     private EditHistory? _history;
     private EditorSession? _session;
+    private OperatingPoint? _operatingPoint;
+    private Schematic? _solvedSchematic;
     private Net? _hoveredNet;
+    private ComponentId? _hoveredComponent;
     private Action? _confirmed;
     private Action? _afterSave;
     private int _netCount;
@@ -82,7 +92,10 @@ public partial class MainScreen : Control
 
         _canvas = GetNode<SchematicCanvas>(CanvasPath);
         _canvas.HoveredNetChanged += OnHoveredNetChanged;
+        _canvas.HoveredComponentChanged += OnHoveredComponentChanged;
         _canvas.ViewChanged += ShowStatus;
+
+        GetTree().AutoAcceptQuit = false;
 
         BuildDialogs();
 
@@ -94,7 +107,18 @@ public partial class MainScreen : Control
         Start(DemoSchematic.Build(_catalog));
         CurrentHistory().MarkSaved();
 
-        GD.Print(NetlistCompiler.Compile(CurrentHistory().Schematic, _catalog).ToDebugText());
+        var netlist = NetlistCompiler.Compile(CurrentHistory().Schematic, _catalog);
+
+        GD.Print(netlist.ToDebugText());
+        GD.Print(DcAnalysis.Solve(netlist, _catalog).ToDebugText());
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationWMCloseRequest)
+        {
+            OnCommand(EditorCommand.FileQuit);
+        }
     }
 
     public override void _UnhandledKeyInput(InputEvent @event)
@@ -151,6 +175,8 @@ public partial class MainScreen : Control
         _session.Changed += OnSessionChanged;
         _session.PropertiesRequested += OnPropertiesRequested;
 
+        ClearOperatingPoint();
+
         _canvas?.Display(_session, _symbols, Analyse(history));
         _menus?.Refresh();
 
@@ -187,6 +213,12 @@ public partial class MainScreen : Control
     {
         _canvas?.SetConnectivity(Analyse(CurrentHistory()));
 
+        if (_operatingPoint is not null
+            && !ReferenceEquals(CurrentHistory().Schematic, _solvedSchematic))
+        {
+            ClearOperatingPoint();
+        }
+
         ShowTitle();
     }
 
@@ -201,6 +233,13 @@ public partial class MainScreen : Control
     private void OnHoveredNetChanged(Net? net)
     {
         _hoveredNet = net;
+
+        ShowStatus();
+    }
+
+    private void OnHoveredComponentChanged(ComponentId? component)
+    {
+        _hoveredComponent = component;
 
         ShowStatus();
     }
@@ -271,6 +310,10 @@ public partial class MainScreen : Control
 
             case EditorAction.Redo:
                 OnCommand(EditorCommand.EditRedo);
+                break;
+
+            case EditorAction.DcOperatingPoint:
+                OnCommand(EditorCommand.SimulateDcOperatingPoint);
                 break;
 
             case EditorAction.Fit:
@@ -368,6 +411,10 @@ public partial class MainScreen : Control
                 ToggleGrid();
                 break;
 
+            case EditorCommand.SimulateDcOperatingPoint:
+                RunDcOperatingPoint();
+                break;
+
             case EditorCommand.HelpShortcuts:
                 _shortcuts.PopupCentered();
                 break;
@@ -378,6 +425,46 @@ public partial class MainScreen : Control
         }
 
         OnSessionChanged();
+    }
+
+    private void RunDcOperatingPoint()
+    {
+        if (_session is null)
+        {
+            return;
+        }
+
+        var schematic = CurrentHistory().Schematic;
+        var solution = DcAnalysis.Solve(
+            NetlistCompiler.Compile(schematic, _catalog), _catalog);
+
+        if (!solution.IsSolved)
+        {
+            ClearOperatingPoint();
+            ShowMessage(DcRefusedTitle, Listed(solution.Errors));
+
+            return;
+        }
+
+        _operatingPoint = solution;
+        _solvedSchematic = schematic;
+        _canvas?.ShowOperatingPoint(solution);
+
+        ShowStatus();
+
+        if (solution.RatingWarnings.Length > 0)
+        {
+            ShowMessage(RatingWarningsTitle, Listed(solution.RatingWarnings));
+        }
+    }
+
+    private void ClearOperatingPoint()
+    {
+        _operatingPoint = null;
+        _solvedSchematic = null;
+
+        _canvas?.ClearOperatingPoint();
+        ShowStatus();
     }
 
     private void ToggleGrid()
@@ -504,16 +591,21 @@ public partial class MainScreen : Control
         _message.PopupCentered();
     }
 
-    private static string Listed(ImmutableArray<SchematicDiagnostic> diagnostics)
-    {
-        var lines = diagnostics
-            .Take(MaximumListedLines)
-            .Select(diagnostic => $"{diagnostic.Path}: {diagnostic.Message}")
-            .ToList();
+    private static string Listed(ImmutableArray<SchematicDiagnostic> diagnostics) =>
+        Capped(diagnostics.Select(
+            diagnostic => $"{diagnostic.Location}: {diagnostic.Message}"));
 
-        if (diagnostics.Length > MaximumListedLines)
+    private static string Listed(ImmutableArray<SimulationDiagnostic> diagnostics) =>
+        Capped(diagnostics.Select(diagnostic => diagnostic.Message));
+
+    private static string Capped(IEnumerable<string> messages)
+    {
+        var all = messages.ToList();
+        var lines = all.Take(MaximumListedLines).ToList();
+
+        if (all.Count > MaximumListedLines)
         {
-            lines.Add($"and {diagnostics.Length - MaximumListedLines}{MoreSuffix}");
+            lines.Add($"and {all.Count - MaximumListedLines}{MoreSuffix}");
         }
 
         return string.Join("\n", lines);
@@ -667,12 +759,26 @@ public partial class MainScreen : Control
 
         var text = $"{NodalInfo.Name} {NodalInfo.Version}{StatusSeparator}"
             + $"{Counted(_netCount, "net")}{StatusSeparator}{Counted(_warningCount, "warning")}"
+            + $"{StatusSeparator}{(_operatingPoint is null ? DcNotRunText : DcSolvedText)}"
             + $"{StatusSeparator}{view.ToolLabel}{StatusSeparator}{view.Cursor}";
 
-        _statusLabel.Text = _hoveredNet is null
-            ? text
-            : text + StatusSeparator + "net " + _hoveredNet.Name;
+        if (_hoveredNet is { } net)
+        {
+            text += StatusSeparator + "net " + net.Name;
+        }
+
+        if (HoveredDescription() is { } description)
+        {
+            text += StatusSeparator + description;
+        }
+
+        _statusLabel.Text = text;
     }
+
+    private string? HoveredDescription() =>
+        _operatingPoint is not null && _hoveredComponent is { } component
+            ? OperatingPointOverlay.Describe(_operatingPoint, component)
+            : null;
 
     private static string Counted(int value, string noun) =>
         value == 1 ? $"1 {noun}" : $"{value} {noun}s";

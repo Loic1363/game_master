@@ -41,6 +41,11 @@ internal static class Sessions
         session.PrimaryReleased(new GridVector(toX, toY));
     }
 
+    public static ComponentId IdOf(this Schematic schematic, string designator) =>
+        schematic.Components.Values.First(
+            component => string.Equals(
+                component.Designator, designator, StringComparison.Ordinal)).Id;
+
     public static ComponentInstance Component(this EditorSession session, int id)
     {
         Assert(session.Schematic.TryGetComponent(new ComponentId(id), out var component));

@@ -3,7 +3,7 @@ using Nodal.Circuit.Schematics;
 
 namespace Nodal.Circuit.Connectivity;
 
-internal static class WireGeometry
+public static class WireGeometry
 {
     public static bool Contains(Wire wire, GridPoint point) =>
         wire.IsHorizontal

@@ -27,6 +27,10 @@ public static class EditorShortcuts
             new ShortcutStroke(Key.Y, Control: true),
             new ShortcutStroke(Key.Z, Control: true, Shift: true)),
         Command(EditorAction.Cancel, "Cancel", new ShortcutStroke(Key.Escape)),
+        Command(
+            EditorAction.DcOperatingPoint,
+            "DC operating point",
+            new ShortcutStroke(Key.F9)),
         Command(EditorAction.Fit, "Fit to schematic", new ShortcutStroke(Key.Home)),
         Command(EditorAction.ZoomIn, "Zoom in", new ShortcutStroke(Key.Equal, Control: true)),
         Command(EditorAction.ZoomOut, "Zoom out", new ShortcutStroke(Key.Minus, Control: true)),

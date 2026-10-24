@@ -20,6 +20,10 @@ public static class CanvasMetrics
 
     public const float GhostOpacity = 0.5f;
 
+    public const float PillPaddingX = 4f;
+
+    public const float PillPaddingY = 1f;
+
     public const float MinimumZoom = 0.25f;
 
     public const float MaximumZoom = 8f;
