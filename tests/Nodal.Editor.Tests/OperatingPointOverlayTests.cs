@@ -124,6 +124,73 @@ public class OperatingPointOverlayTests
         Assert.Null(OperatingPointOverlay.Describe(Solve(schematic), schematic.IdOf("GND1")));
     }
 
+    [Fact]
+    public void AHoveredNetIsDescribedWithItsNameAndVoltage()
+    {
+        var schematic = SourceAndResistor();
+
+        Assert.Equal(
+            "N1 = 5 V",
+            OperatingPointOverlay.DescribeNet(
+                Solve(schematic), NetOf(schematic, "V1", "plus")));
+    }
+
+    [Fact]
+    public void AHoveredNetWithoutADcPathIsDescribedAsUndefined()
+    {
+        var schematic = Schematic.Empty
+            .Add("voltage-source", 0, 0)
+            .Add("ground", 0, 2)
+            .Add("capacitor", 6, -2)
+            .Wire(0, -2, 4, -2);
+
+        var floating = NetOf(schematic, "C1", "2");
+
+        Assert.Equal(
+            $"{floating} = {OperatingPointOverlay.UndefinedText}",
+            OperatingPointOverlay.DescribeNet(Solve(schematic), floating));
+    }
+
+    [Fact]
+    public void ARefusedAnalysisDescribesNoNet()
+    {
+        var schematic = Schematic.Empty.Add("resistor", 0, 0);
+
+        Assert.Null(OperatingPointOverlay.DescribeNet(Solve(schematic), "N1"));
+    }
+
+    [Fact]
+    public void AVoltagePillBelowANanovoltReadsAsZero()
+    {
+        var schematic = SourceAndResistor().Set("V1", "voltage", 1e-12);
+
+        Assert.Equal("0 V", LabelFor(schematic, NetOf(schematic, "V1", "plus")).Text);
+    }
+
+    [Fact]
+    public void AHoveredNetBelowANanovoltReadsAsZero()
+    {
+        var schematic = SourceAndResistor().Set("V1", "voltage", 1e-12);
+        var net = NetOf(schematic, "V1", "plus");
+
+        Assert.Equal($"{net} = 0 V", OperatingPointOverlay.DescribeNet(Solve(schematic), net));
+    }
+
+    [Fact]
+    public void AHoverTextBelowTheFloorsReadsAsZeroVoltsAndAmperes()
+    {
+        var schematic = SourceAndResistor()
+            .Wire(8, -2, 8, 2)
+            .Wire(0, 2, 8, 2)
+            .Set("V1", "voltage", 1e-12)
+            .Set("R1", "resistance", 1e6);
+
+        var described = OperatingPointOverlay.Describe(
+            Solve(schematic), schematic.IdOf("R1"));
+
+        Assert.StartsWith("R1: 0 V, 0 A, ", described, StringComparison.Ordinal);
+    }
+
     private static NetVoltageLabel LabelFor(Schematic schematic, string netName) =>
         LabelsOf(schematic).Single(
             label => string.Equals(label.NetName, netName, StringComparison.Ordinal));

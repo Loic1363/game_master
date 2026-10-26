@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/Presentation/MainScreen.cs" id="1_mainscreen"]
 [ext_resource type="Script" path="res://scripts/Rendering/SchematicCanvas.cs" id="2_canvas"]
+[ext_resource type="Script" path="res://scripts/Rendering/WaveformPanel.cs" id="3_waveform"]
 
 [node name="Main" type="Control"]
 anchors_preset = 15
@@ -25,11 +26,22 @@ theme_override_constants/separation = 0
 [node name="MenuBar" type="MenuBar" parent="Layout"]
 layout_mode = 2
 
-[node name="SchematicCanvas" type="Control" parent="Layout"]
+[node name="Split" type="VSplitContainer" parent="Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="SchematicCanvas" type="Control" parent="Layout/Split"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 script = ExtResource("2_canvas")
+
+[node name="WaveformPanel" type="Control" parent="Layout/Split"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("3_waveform")
 
 [node name="StatusBar" type="ColorRect" parent="Layout"]
 custom_minimum_size = Vector2(0, 26)

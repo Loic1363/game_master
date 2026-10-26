@@ -29,5 +29,5 @@ internal static class ComponentFields
     public static readonly string[] Pin = [Name, X, Y, GlobalNet];
 
     public static readonly string[] Parameter =
-        [Name, Label, Tier, Unit, Default, Minimum, Maximum, Series];
+        [Name, Label, Tier, Kind, Unit, Default, Minimum, Maximum, Series];
 }

@@ -17,6 +17,7 @@ public static class EditorShortcuts
         Command(EditorAction.SaveAs, "Save as", new ShortcutStroke(Key.S, Control: true, Shift: true)),
         Command(EditorAction.Properties, "Properties", new ShortcutStroke(Key.F4)),
         Command(EditorAction.WireTool, "Wire tool", new ShortcutStroke(Key.W), new ShortcutStroke(Key.F3)),
+        Command(EditorAction.ProbeTool, "Probe tool", new ShortcutStroke(Key.P)),
         Command(EditorAction.Delete, "Delete", new ShortcutStroke(Key.Delete), new ShortcutStroke(Key.F5)),
         Command(EditorAction.Rotate, "Rotate", new ShortcutStroke(Key.R, Control: true)),
         Command(EditorAction.Mirror, "Mirror", new ShortcutStroke(Key.E, Control: true)),
@@ -31,6 +32,10 @@ public static class EditorShortcuts
             EditorAction.DcOperatingPoint,
             "DC operating point",
             new ShortcutStroke(Key.F9)),
+        Command(
+            EditorAction.Transient,
+            "Transient analysis",
+            new ShortcutStroke(Key.F10)),
         Command(EditorAction.Fit, "Fit to schematic", new ShortcutStroke(Key.Home)),
         Command(EditorAction.ZoomIn, "Zoom in", new ShortcutStroke(Key.Equal, Control: true)),
         Command(EditorAction.ZoomOut, "Zoom out", new ShortcutStroke(Key.Minus, Control: true)),

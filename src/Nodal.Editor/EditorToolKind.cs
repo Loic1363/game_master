@@ -5,4 +5,5 @@ public enum EditorToolKind
     Select,
     Place,
     Wire,
+    Probe,
 }

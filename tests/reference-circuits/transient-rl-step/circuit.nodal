@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "kind": "schematic",
+  "createdWith": "Nodal 0.0.1",
+  "nextComponentId": 6,
+  "nextWireId": 3,
+  "components": [
+    {
+      "id": 1,
+      "definition": "voltage-source",
+      "designator": "V1",
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {
+        "function": {
+          "pulse": {
+            "v1": 0,
+            "v2": 5,
+            "delay": 0,
+            "rise": 1e-09,
+            "fall": 1e-09,
+            "on": 1.0,
+            "period": 2.0
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "definition": "ground",
+      "designator": "GND1",
+      "x": 0,
+      "y": 2,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {}
+    },
+    {
+      "id": 3,
+      "definition": "inductor",
+      "designator": "L1",
+      "x": 6,
+      "y": 0,
+      "rotation": 90,
+      "mirrored": false,
+      "parameters": {
+        "inductance": 0.001
+      }
+    },
+    {
+      "id": 4,
+      "definition": "resistor",
+      "designator": "R1",
+      "x": 6,
+      "y": 6,
+      "rotation": 90,
+      "mirrored": false,
+      "parameters": {
+        "resistance": 100
+      }
+    },
+    {
+      "id": 5,
+      "definition": "ground",
+      "designator": "GND2",
+      "x": 6,
+      "y": 8,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": 1,
+      "from": [
+        0,
+        -2
+      ],
+      "to": [
+        6,
+        -2
+      ]
+    },
+    {
+      "id": 2,
+      "from": [
+        6,
+        2
+      ],
+      "to": [
+        6,
+        4
+      ]
+    }
+  ],
+  "analysis": {
+    "transient": {
+      "stopTime": 5e-05,
+      "outputStep": 2.5e-07,
+      "maxStep": 1e-08,
+      "startFromZero": true
+    }
+  }
+}

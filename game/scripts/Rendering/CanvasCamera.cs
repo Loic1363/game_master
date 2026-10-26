@@ -1,6 +1,7 @@
 using Godot;
 using Nodal.Circuit.Geometry;
 using Nodal.Foundation.Geometry;
+using Nodal.Game.Style;
 
 namespace Nodal.Game.Rendering;
 

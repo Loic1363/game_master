@@ -126,8 +126,8 @@ public class StructuralRecordEqualityTests
         Orientation.Default,
         Parameters(resistance));
 
-    private static ImmutableSortedDictionary<string, Quantity> Parameters(double resistance) =>
+    private static ImmutableSortedDictionary<string, ParameterValue> Parameters(double resistance) =>
         ImmutableSortedDictionary
-            .Create<string, Quantity>(StringComparer.Ordinal)
+            .Create<string, ParameterValue>(StringComparer.Ordinal)
             .Add("resistance", new Quantity(resistance, Unit.Ohm));
 }

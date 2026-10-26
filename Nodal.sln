@@ -30,6 +30,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nodal.Simulation", "src\Nod
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nodal.Simulation.Tests", "tests\Nodal.Simulation.Tests\Nodal.Simulation.Tests.csproj", "{68789AE2-C13A-4EA1-AE86-CAD1031B8447}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nodal.Cli", "src\Nodal.Cli\Nodal.Cli.csproj", "{2A700096-E3D9-4360-90AF-A4766A3417A4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -184,6 +186,18 @@ Global
 		{68789AE2-C13A-4EA1-AE86-CAD1031B8447}.Release|x64.Build.0 = Release|Any CPU
 		{68789AE2-C13A-4EA1-AE86-CAD1031B8447}.Release|x86.ActiveCfg = Release|Any CPU
 		{68789AE2-C13A-4EA1-AE86-CAD1031B8447}.Release|x86.Build.0 = Release|Any CPU
+		{2A700096-E3D9-4360-90AF-A4766A3417A4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2A700096-E3D9-4360-90AF-A4766A3417A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2A700096-E3D9-4360-90AF-A4766A3417A4}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2A700096-E3D9-4360-90AF-A4766A3417A4}.Debug|x64.Build.0 = Debug|Any CPU
+		{2A700096-E3D9-4360-90AF-A4766A3417A4}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2A700096-E3D9-4360-90AF-A4766A3417A4}.Debug|x86.Build.0 = Debug|Any CPU
+		{2A700096-E3D9-4360-90AF-A4766A3417A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2A700096-E3D9-4360-90AF-A4766A3417A4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2A700096-E3D9-4360-90AF-A4766A3417A4}.Release|x64.ActiveCfg = Release|Any CPU
+		{2A700096-E3D9-4360-90AF-A4766A3417A4}.Release|x64.Build.0 = Release|Any CPU
+		{2A700096-E3D9-4360-90AF-A4766A3417A4}.Release|x86.ActiveCfg = Release|Any CPU
+		{2A700096-E3D9-4360-90AF-A4766A3417A4}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -193,6 +207,7 @@ Global
 		{55F408B6-AE0B-4AA2-847A-8E01EB5DE73F} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{1246C284-37C6-4D8E-BE0B-8E0A7606401C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{68789AE2-C13A-4EA1-AE86-CAD1031B8447} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{2A700096-E3D9-4360-90AF-A4766A3417A4} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D66EBBF6-7507-4747-982A-B080061F1332}

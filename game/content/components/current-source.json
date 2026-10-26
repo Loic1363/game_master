@@ -12,6 +12,7 @@
   ],
   "parameters": [
     { "name": "current", "label": "Current", "tier": "basic", "unit": "ampere", "default": "1m" },
+    { "name": "function", "label": "Function", "tier": "basic", "kind": "waveform", "unit": "ampere" },
     { "name": "parallel-resistance", "label": "Parallel resistance", "tier": "advanced", "unit": "ohm", "min": "0" }
   ]
 }

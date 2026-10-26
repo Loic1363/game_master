@@ -7,5 +7,9 @@ public enum SimulationDiagnosticCode
     UnsupportedComponent,
     NoDcPath,
     Singular,
+    NonConvergence,
+    UnboundedCurrent,
+    UnsupportedWaveformFeature,
+    TimestepTooSmall,
     RatingExceeded,
 }

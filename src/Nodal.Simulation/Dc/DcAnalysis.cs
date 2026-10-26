@@ -5,15 +5,14 @@ using Nodal.Circuit.Schematics;
 using Nodal.Content.Components;
 using Nodal.Foundation.Quantities;
 using Nodal.Simulation.Diagnostics;
-using Nodal.Simulation.LinearAlgebra;
+using Nodal.Simulation.Elaboration;
 
 namespace Nodal.Simulation.Dc;
 
 public static class DcAnalysis
 {
-    public const double Gmin = 1e-12;
-
-    public static OperatingPoint Solve(Netlist netlist, ComponentCatalog catalog)
+    public static OperatingPoint Solve(
+        Netlist netlist, ComponentCatalog catalog, DcOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(netlist);
         ArgumentNullException.ThrowIfNull(catalog);
@@ -25,23 +24,17 @@ public static class DcAnalysis
             return OperatingPoint.Refused(refusals);
         }
 
-        var elements = DcElements.Resolve(netlist, catalog);
-        var undefinedNets = DcPaths.NetsWithoutPathToGround(netlist.NetNames, elements);
-        var system = DcSystem.Build(netlist.NetNames, elements, undefinedNets);
+        var circuit = Elaborator.Elaborate(netlist, catalog);
 
-        if (!LuDecomposition.TryFactor(system.Matrix, out var decomposition))
-        {
-            return OperatingPoint.Refused([Singular(netlist, elements)]);
-        }
-
-        var solution = decomposition.Solve(system.RightHandSide);
-
-        return solution.All(double.IsFinite)
-            ? Solved(netlist, elements, system.Unknowns, solution, undefinedNets)
-            : OperatingPoint.Refused([Singular(netlist, elements)]);
+        return Solve(circuit, options ?? DcOptions.Default);
     }
 
-    private static ImmutableArray<SimulationDiagnostic> Refusals(
+    internal static OperatingPoint Solve(ElaboratedCircuit circuit, DcOptions options) =>
+        DcSolver.TrySolve(circuit, options, out var solution, out var failure)
+            ? Solved(solution)
+            : OperatingPoint.Refused([failure]);
+
+    internal static ImmutableArray<SimulationDiagnostic> Refusals(
         Netlist netlist, ComponentCatalog catalog)
     {
         var diagnostics = ImmutableArray.CreateBuilder<SimulationDiagnostic>();
@@ -59,53 +52,37 @@ public static class DcAnalysis
             diagnostics.Add(SimulationDiagnostic.NoGround());
         }
 
-        foreach (var element in netlist.Elements)
-        {
-            if (!DcElements.IsSupported(element, out _))
-            {
-                diagnostics.Add(SimulationDiagnostic.UnsupportedComponent(
-                    element.Id, element.Designator, NameOf(catalog, element.DefinitionId)));
-            }
-        }
+        diagnostics.AddRange(UnsupportedComponents.In(netlist, catalog));
 
         return diagnostics.ToImmutable();
     }
 
-    private static SimulationDiagnostic Singular(Netlist netlist, ImmutableArray<DcElement> elements)
+    private static OperatingPoint Solved(DcSolution solution)
     {
-        var cause = VoltageBranchCycles.Find(netlist.NetNames, elements);
-
-        return SimulationDiagnostic.Singular(
-            cause?.Description, cause?.Components ?? [], cause?.Nets ?? []);
-    }
-
-    private static OperatingPoint Solved(
-        Netlist netlist,
-        ImmutableArray<DcElement> elements,
-        DcUnknowns unknowns,
-        double[] solution,
-        ImmutableArray<string> undefinedNets)
-    {
+        var circuit = solution.Circuit;
+        var undefined = UndefinedNets(solution);
         var voltages = ImmutableSortedDictionary.CreateBuilder<string, Quantity>(
             StringComparer.Ordinal);
 
-        foreach (var name in netlist.NetNames)
+        foreach (var net in circuit.ExternalNets)
         {
-            voltages[name] = new Quantity(VoltageOf(unknowns, solution, name), Unit.Volt);
+            if (!undefined.Contains(net, StringComparer.Ordinal))
+            {
+                voltages[net] = new Quantity(solution.NodeVoltage(net), Unit.Volt);
+            }
         }
 
         var components =
             ImmutableSortedDictionary.CreateBuilder<ComponentId, ComponentOperatingPoint>();
         var ratings = new List<SimulationDiagnostic>();
 
-        for (var index = 0; index < elements.Length; index++)
+        foreach (var component in circuit.Components)
         {
-            var element = elements[index];
-            var result = ResultOf(element, unknowns, solution, unknowns.BranchOf(index));
+            var result = ResultOf(solution, component);
 
-            components[element.Id] = result;
+            components[component.Id] = result;
 
-            if (RatingChecks.Of(element, result) is { } warning)
+            if (RatingChecks.Of(component, result) is { } warning)
             {
                 ratings.Add(warning);
             }
@@ -114,33 +91,29 @@ public static class DcAnalysis
         return OperatingPoint.Solution(
             voltages.ToImmutable(),
             components.ToImmutable(),
-            [.. undefinedNets.Select(SimulationDiagnostic.NoDcPath), .. ratings]);
+            [.. undefined.Select(SimulationDiagnostic.NoDcPath), .. ratings],
+            solution.Convergence);
     }
 
-    private static ComponentOperatingPoint ResultOf(
-        DcElement element, DcUnknowns unknowns, double[] solution, int branch)
-    {
-        var across = VoltageOf(unknowns, solution, element.FirstNet)
-            - VoltageOf(unknowns, solution, element.SecondNet);
+    private static ImmutableArray<string> UndefinedNets(DcSolution solution) =>
+    [
+        .. solution.UndefinedNodes.Where(
+            node => !solution.Circuit.IsInternal(node)),
+    ];
 
-        var current = (branch >= 0 ? solution[branch] : across * (element.Conductance ?? 0))
-            - element.SourceCurrent;
+    private static ComponentOperatingPoint ResultOf(
+        DcSolution solution, ElaboratedComponent component)
+    {
+        var across = solution.NodeVoltage(component.PlusNet)
+            - solution.NodeVoltage(component.MinusNet);
+
+        var current = component.TerminalPrimitives.Sum(solution.CurrentOf);
 
         return new ComponentOperatingPoint(
-            element.Id,
-            element.Designator,
+            component.Id,
+            component.Designator,
             new Quantity(across, Unit.Volt),
             new Quantity(current, Unit.Ampere),
             new Quantity(across * current, Unit.Watt));
     }
-
-    private static double VoltageOf(DcUnknowns unknowns, double[] solution, string netName)
-    {
-        var node = unknowns.NodeOf(netName);
-
-        return node >= 0 ? solution[node] : 0;
-    }
-
-    private static string NameOf(ComponentCatalog catalog, string definitionId) =>
-        catalog.TryGetById(definitionId, out var definition) ? definition.Name : definitionId;
 }

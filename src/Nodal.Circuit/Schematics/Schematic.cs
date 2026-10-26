@@ -11,19 +11,22 @@ public sealed class Schematic
         ImmutableSortedDictionary<ComponentId, ComponentInstance> components,
         ImmutableSortedDictionary<WireId, Wire> wires,
         ComponentId nextComponentId,
-        WireId nextWireId)
+        WireId nextWireId,
+        AnalysisSettings analysis)
     {
         Components = components;
         Wires = wires;
         NextComponentId = nextComponentId;
         NextWireId = nextWireId;
+        Analysis = analysis;
     }
 
     public static Schematic Empty { get; } = new(
         ImmutableSortedDictionary<ComponentId, ComponentInstance>.Empty,
         ImmutableSortedDictionary<WireId, Wire>.Empty,
         ComponentId.First,
-        WireId.First);
+        WireId.First,
+        AnalysisSettings.None);
 
     public ImmutableSortedDictionary<ComponentId, ComponentInstance> Components { get; }
 
@@ -33,11 +36,14 @@ public sealed class Schematic
 
     public WireId NextWireId { get; }
 
+    public AnalysisSettings Analysis { get; }
+
     public static Schematic Create(
         IEnumerable<ComponentInstance> components,
         IEnumerable<Wire> wires,
         ComponentId nextComponentId,
-        WireId nextWireId)
+        WireId nextWireId,
+        AnalysisSettings? analysis = null)
     {
         ArgumentNullException.ThrowIfNull(components);
         ArgumentNullException.ThrowIfNull(wires);
@@ -48,7 +54,12 @@ public sealed class Schematic
         RequireNextComponentId(componentsById, nextComponentId);
         RequireNextWireId(wiresById, nextWireId);
 
-        return new Schematic(componentsById, wiresById, nextComponentId, nextWireId);
+        return new Schematic(
+            componentsById,
+            wiresById,
+            nextComponentId,
+            nextWireId,
+            analysis ?? AnalysisSettings.None);
     }
 
     public bool TryGetComponent(ComponentId id, [NotNullWhen(true)] out ComponentInstance? component) =>
@@ -91,7 +102,11 @@ public sealed class Schematic
         }
 
         return new Schematic(
-            Components.Add(component.Id, component), Wires, NextComponentId.Next(), NextWireId);
+            Components.Add(component.Id, component),
+            Wires,
+            NextComponentId.Next(),
+            NextWireId,
+            Analysis);
     }
 
     internal Schematic WithUpdatedComponent(ComponentInstance component)
@@ -103,7 +118,11 @@ public sealed class Schematic
         }
 
         return new Schematic(
-            Components.SetItem(component.Id, component), Wires, NextComponentId, NextWireId);
+            Components.SetItem(component.Id, component),
+            Wires,
+            NextComponentId,
+            NextWireId,
+            Analysis);
     }
 
     internal Schematic WithoutComponent(ComponentId id)
@@ -113,7 +132,8 @@ public sealed class Schematic
             throw new ArgumentException($"No component carries the id {id}.", nameof(id));
         }
 
-        return new Schematic(Components.Remove(id), Wires, NextComponentId, NextWireId);
+        return new Schematic(
+            Components.Remove(id), Wires, NextComponentId, NextWireId, Analysis);
     }
 
     internal Schematic WithWire(Wire wire)
@@ -126,7 +146,8 @@ public sealed class Schematic
                 $"A new wire must carry the next id {NextWireId}, not {wire.Id}.", nameof(wire));
         }
 
-        return new Schematic(Components, Wires.Add(wire.Id, wire), NextComponentId, NextWireId.Next());
+        return new Schematic(
+            Components, Wires.Add(wire.Id, wire), NextComponentId, NextWireId.Next(), Analysis);
     }
 
     internal Schematic WithoutWire(WireId id)
@@ -136,7 +157,15 @@ public sealed class Schematic
             throw new ArgumentException($"No wire carries the id {id}.", nameof(id));
         }
 
-        return new Schematic(Components, Wires.Remove(id), NextComponentId, NextWireId);
+        return new Schematic(
+            Components, Wires.Remove(id), NextComponentId, NextWireId, Analysis);
+    }
+
+    internal Schematic WithAnalysis(AnalysisSettings analysis)
+    {
+        ArgumentNullException.ThrowIfNull(analysis);
+
+        return new Schematic(Components, Wires, NextComponentId, NextWireId, analysis);
     }
 
     private static ImmutableSortedDictionary<ComponentId, ComponentInstance> CollectComponents(

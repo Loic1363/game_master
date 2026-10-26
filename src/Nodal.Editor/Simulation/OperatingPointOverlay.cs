@@ -22,14 +22,21 @@ public static class OperatingPointOverlay
         Schematic schematic,
         ComponentCatalog catalog,
         ConnectivityResult connectivity,
-        OperatingPoint operatingPoint)
+        OperatingPoint operatingPoint) =>
+        Labels(schematic, catalog, connectivity, SolutionSnapshot.FromDc(operatingPoint));
+
+    public static ImmutableArray<NetVoltageLabel> Labels(
+        Schematic schematic,
+        ComponentCatalog catalog,
+        ConnectivityResult connectivity,
+        SolutionSnapshot solution)
     {
         ArgumentNullException.ThrowIfNull(schematic);
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(connectivity);
-        ArgumentNullException.ThrowIfNull(operatingPoint);
+        ArgumentNullException.ThrowIfNull(solution);
 
-        if (!operatingPoint.IsSolved)
+        if (!solution.IsSolved)
         {
             return [];
         }
@@ -40,35 +47,61 @@ public static class OperatingPointOverlay
         {
             if (string.Equals(
                     net.Name, SimulationDiagnostic.GroundNetName, StringComparison.Ordinal)
-                || !operatingPoint.TryGetNetVoltage(net.Name, out var voltage)
+                || TextOf(solution, net.Name) is not { } text
                 || AnchorOf(schematic, catalog, connectivity, net) is not { } position)
             {
                 continue;
             }
 
-            labels.Add(new NetVoltageLabel(
-                net.Name, position, TextOf(net.Name, voltage, operatingPoint)));
+            labels.Add(new NetVoltageLabel(net.Name, position, text));
         }
 
         return labels.ToImmutable();
     }
 
-    public static string? Describe(OperatingPoint operatingPoint, ComponentId id)
-    {
-        ArgumentNullException.ThrowIfNull(operatingPoint);
+    public static string? Describe(OperatingPoint operatingPoint, ComponentId id) =>
+        Describe(SolutionSnapshot.FromDc(operatingPoint), id);
 
-        if (!operatingPoint.TryGetComponent(id, out var component))
+    public static string? Describe(SolutionSnapshot solution, ComponentId id)
+    {
+        ArgumentNullException.ThrowIfNull(solution);
+
+        if (!solution.TryGetComponent(id, out var component))
         {
             return null;
         }
 
-        return $"{component.Designator}: {Magnitude(component.Voltage)}, "
-            + $"{Magnitude(component.Current)}, {Magnitude(component.Power)} "
+        return $"{component.Designator}: {DisplayValue.Magnitude(component.Voltage)}, "
+            + $"{DisplayValue.Magnitude(component.Current)}, {Magnitude(component.Power)} "
             + (component.Absorbs ? AbsorbedText : DeliveredText);
     }
 
-    private static string TextOf(string netName, Quantity voltage, OperatingPoint operatingPoint) =>
-        operatingPoint.IsUndefined(netName) ? UndefinedText : voltage.ToString();
+    public static string? DescribeNet(OperatingPoint operatingPoint, string netName) =>
+        DescribeNet(SolutionSnapshot.FromDc(operatingPoint), netName);
+
+    public static string? DescribeNet(SolutionSnapshot solution, string netName)
+    {
+        ArgumentNullException.ThrowIfNull(solution);
+
+        return TextOf(solution, netName) is { } text ? $"{netName} = {text}" : null;
+    }
+
+    private static string? TextOf(SolutionSnapshot solution, string netName)
+    {
+        if (!solution.IsSolved)
+        {
+            return null;
+        }
+
+        if (solution.IsUndefined(netName))
+        {
+            return UndefinedText;
+        }
+
+        return solution.TryGetNetVoltage(netName, out var voltage)
+            ? DisplayValue.Text(voltage)
+            : null;
+    }
 
     private static GridVector? AnchorOf(
         Schematic schematic, ComponentCatalog catalog, ConnectivityResult connectivity, Net net) =>

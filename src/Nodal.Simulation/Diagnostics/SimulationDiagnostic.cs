@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Nodal.Circuit.Connectivity;
 using Nodal.Circuit.Schematics;
 using Nodal.Foundation.Collections;
+using Nodal.Foundation.Quantities;
 
 namespace Nodal.Simulation.Diagnostics;
 
@@ -49,7 +50,7 @@ public sealed record SimulationDiagnostic(
     public static SimulationDiagnostic NoDcPath(string netName) =>
         new(SimulationSeverity.Warning,
             SimulationDiagnosticCode.NoDcPath,
-            $"{netName} has no DC path to ground; its voltage is undefined (shown as 0 V).",
+            $"{netName} has no DC path to ground; its voltage is undefined.",
             [],
             [netName]);
 
@@ -62,6 +63,44 @@ public sealed record SimulationDiagnostic(
                 : $"The circuit has no unique DC solution: {cause}",
             components,
             nets);
+
+    public static SimulationDiagnostic NonConvergence(int iterations) =>
+        new(SimulationSeverity.Error,
+            SimulationDiagnosticCode.NonConvergence,
+            $"The DC analysis did not converge after {iterations} iterations. The circuit may "
+            + "have no stable operating point, or a value may be unrealistic.",
+            [],
+            []);
+
+    public static SimulationDiagnostic UnboundedCurrent(
+        ComponentId diode,
+        string diodeDesignator,
+        ComponentId source,
+        string sourceDesignator,
+        ImmutableArray<string> nets) =>
+        new(SimulationSeverity.Error,
+            SimulationDiagnosticCode.UnboundedCurrent,
+            $"{diodeDesignator} is connected directly across the ideal source "
+            + $"{sourceDesignator}; its current would be unbounded. Add a series resistance.",
+            [diode, source],
+            nets);
+
+    public static SimulationDiagnostic TimestepTooSmall(double time) =>
+        new(SimulationSeverity.Error,
+            SimulationDiagnosticCode.TimestepTooSmall,
+            $"The transient analysis failed at t = {new Quantity(time, Unit.Second)}: the "
+            + "timestep became too small.",
+            [],
+            []);
+
+    public static SimulationDiagnostic UnsupportedWaveformFeature(
+        ComponentId id, string designator, string feature) =>
+        new(SimulationSeverity.Error,
+            SimulationDiagnosticCode.UnsupportedWaveformFeature,
+            $"{designator} uses {feature}, which ngspice has no equivalent for, so the deck "
+            + "cannot be exported.",
+            [id],
+            []);
 
     public static SimulationDiagnostic RatingExceeded(ComponentId id, string message) =>
         new(SimulationSeverity.Warning, SimulationDiagnosticCode.RatingExceeded, message, [id], []);

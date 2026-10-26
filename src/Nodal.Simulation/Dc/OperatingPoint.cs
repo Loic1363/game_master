@@ -15,12 +15,14 @@ public sealed class OperatingPoint
         bool isSolved,
         ImmutableSortedDictionary<string, Quantity> netVoltages,
         ImmutableSortedDictionary<ComponentId, ComponentOperatingPoint> components,
-        ImmutableArray<SimulationDiagnostic> diagnostics)
+        ImmutableArray<SimulationDiagnostic> diagnostics,
+        DcConvergence? convergence)
     {
         IsSolved = isSolved;
         NetVoltages = netVoltages;
         Components = components;
         Diagnostics = diagnostics;
+        Convergence = convergence;
     }
 
     public bool IsSolved { get; }
@@ -30,6 +32,8 @@ public sealed class OperatingPoint
     public ImmutableSortedDictionary<ComponentId, ComponentOperatingPoint> Components { get; }
 
     public ImmutableArray<SimulationDiagnostic> Diagnostics { get; }
+
+    public DcConvergence? Convergence { get; }
 
     public ImmutableArray<SimulationDiagnostic> Errors =>
         [.. Diagnostics.Where(diagnostic => diagnostic.Severity == SimulationSeverity.Error)];
@@ -94,13 +98,15 @@ public sealed class OperatingPoint
         new(false,
             ImmutableSortedDictionary.Create<string, Quantity>(StringComparer.Ordinal),
             ImmutableSortedDictionary<ComponentId, ComponentOperatingPoint>.Empty,
-            diagnostics);
+            diagnostics,
+            null);
 
     internal static OperatingPoint Solution(
         ImmutableSortedDictionary<string, Quantity> netVoltages,
         ImmutableSortedDictionary<ComponentId, ComponentOperatingPoint> components,
-        ImmutableArray<SimulationDiagnostic> diagnostics) =>
-        new(true, netVoltages, components, diagnostics);
+        ImmutableArray<SimulationDiagnostic> diagnostics,
+        DcConvergence convergence) =>
+        new(true, netVoltages, components, diagnostics, convergence);
 
     private static StringBuilder Line(StringBuilder text)
     {

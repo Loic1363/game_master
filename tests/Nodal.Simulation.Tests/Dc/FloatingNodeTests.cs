@@ -28,12 +28,13 @@ public class FloatingNodeTests
     }
 
     [Fact]
-    public void TheFloatingNodeStillSolvesNearZeroVolts()
+    public void TheFloatingNodeHasNoVoltageInTheSolution()
     {
         var schematic = Circuit();
         var solution = schematic.Solve();
 
-        Approximately.Zero(solution.Volts(schematic.NetAt("C1", "2")), 1e-9);
+        Assert.False(solution.TryGetNetVoltage(schematic.NetAt("C1", "2"), out _));
+        Assert.DoesNotContain(schematic.NetAt("C1", "2"), solution.NetVoltages.Keys);
     }
 
     [Fact]
@@ -52,7 +53,7 @@ public class FloatingNodeTests
         var floating = schematic.NetAt("C1", "2");
 
         Assert.Equal(
-            $"{floating} has no DC path to ground; its voltage is undefined (shown as 0 V).",
+            $"{floating} has no DC path to ground; its voltage is undefined.",
             schematic.Solve().Diagnostics.Single().Message);
     }
 

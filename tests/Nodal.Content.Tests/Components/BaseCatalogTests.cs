@@ -44,8 +44,8 @@ public class BaseCatalogTests
     [InlineData("pmos", ComponentCategory.Semiconductor, "M", 3, 0)]
     [InlineData("npn", ComponentCategory.Semiconductor, "Q", 3, 0)]
     [InlineData("pnp", ComponentCategory.Semiconductor, "Q", 3, 0)]
-    [InlineData("voltage-source", ComponentCategory.Source, "V", 2, 2)]
-    [InlineData("current-source", ComponentCategory.Source, "I", 2, 2)]
+    [InlineData("voltage-source", ComponentCategory.Source, "V", 2, 3)]
+    [InlineData("current-source", ComponentCategory.Source, "I", 2, 3)]
     [InlineData("ground", ComponentCategory.Reference, "GND", 1, 0)]
     public void BaseComponentHasTheExpectedShape(
         string id, ComponentCategory category, string designatorPrefix, int pinCount, int parameterCount)
@@ -128,7 +128,7 @@ public class BaseCatalogTests
     }
 
     [Fact]
-    public void EveryBaseParameterCarriesALabelAndExactlyOneBasicRequiredParameter()
+    public void EveryBaseParameterCarriesALabelAndEveryBasicQuantityIsRequired()
     {
         foreach (var definition in LoadBaseCatalog().Catalog.Definitions)
         {
@@ -136,8 +136,42 @@ public class BaseCatalogTests
 
             Assert.Equal(
                 definition.Parameters.Count(parameter => parameter.IsRequired),
-                definition.Parameters.Count(parameter => parameter.Tier == ParameterTier.Basic));
+                definition.Parameters.Count(
+                    parameter => parameter.Tier == ParameterTier.Basic && !parameter.IsWaveform));
         }
+    }
+
+    [Fact]
+    public void EveryWaveformParameterIsBasicAndCarriesNoDefaultBoundsOrSeries()
+    {
+        var waveforms = LoadBaseCatalog().Catalog.Definitions
+            .SelectMany(definition => definition.Parameters)
+            .Where(parameter => parameter.IsWaveform)
+            .ToArray();
+
+        Assert.NotEmpty(waveforms);
+
+        Assert.All(waveforms, parameter =>
+        {
+            Assert.Equal(ParameterTier.Basic, parameter.Tier);
+            Assert.Null(parameter.Default);
+            Assert.Null(parameter.Minimum);
+            Assert.Null(parameter.Maximum);
+            Assert.Null(parameter.Series);
+            Assert.False(parameter.IsRequired);
+        });
+    }
+
+    [Theory]
+    [InlineData("voltage-source", Unit.Volt)]
+    [InlineData("current-source", Unit.Ampere)]
+    public void EverySourceCarriesAFunctionParameterInItsAmplitudeUnit(string id, Unit unit)
+    {
+        var parameter = ParameterOf(id, "function");
+
+        Assert.Equal(ParameterKind.Waveform, parameter.Kind);
+        Assert.Equal("Function", parameter.Label);
+        Assert.Equal(unit, parameter.Unit);
     }
 
     [Theory]

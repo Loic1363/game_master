@@ -11,7 +11,7 @@ public sealed record ComponentInstance(
     string Designator,
     GridPoint Position,
     Orientation Orientation,
-    ImmutableSortedDictionary<string, Quantity> Parameters)
+    ImmutableSortedDictionary<string, ParameterValue> Parameters)
 {
     public bool Equals(ComponentInstance? other) =>
         other is not null

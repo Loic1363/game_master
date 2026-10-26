@@ -27,13 +27,17 @@ public static class SchematicFiles
         }
     }
 
-    public static string WithExtension(string path)
+    public static string WithExtension(string path) =>
+        WithExtension(path, SchematicFile.Extension);
+
+    public static string WithExtension(string path, string extension)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentException.ThrowIfNullOrWhiteSpace(extension);
 
-        return path.EndsWith(SchematicFile.Extension, StringComparison.OrdinalIgnoreCase)
+        return path.EndsWith(extension, StringComparison.OrdinalIgnoreCase)
             ? path
-            : path + SchematicFile.Extension;
+            : path + extension;
     }
 
     public static bool TryRead(string path, out string text, out string error)

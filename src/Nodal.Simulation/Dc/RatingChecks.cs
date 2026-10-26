@@ -1,33 +1,35 @@
 using Nodal.Foundation.Quantities;
 using Nodal.Simulation.Diagnostics;
+using Nodal.Simulation.Elaboration;
 
 namespace Nodal.Simulation.Dc;
 
 internal static class RatingChecks
 {
-    public static SimulationDiagnostic? Of(DcElement element, ComponentOperatingPoint result) =>
-        element.Kind switch
+    public static SimulationDiagnostic? Of(
+        ElaboratedComponent component, ComponentOperatingPoint result) =>
+        component.Kind switch
         {
-            DcModelKind.Resistor => Exceeded(
-                element,
+            ComponentKind.Resistor => Exceeded(
+                component,
                 result.Power.Value,
-                element.Ratings.Power,
+                component.Ratings.Power,
                 Unit.Watt,
                 "dissipates",
                 "power"),
 
-            DcModelKind.Capacitor => Exceeded(
-                element,
+            ComponentKind.Capacitor => Exceeded(
+                component,
                 result.Voltage.Value,
-                element.Ratings.Voltage,
+                component.Ratings.Voltage,
                 Unit.Volt,
                 "holds",
                 "voltage"),
 
-            DcModelKind.Inductor => Exceeded(
-                element,
+            ComponentKind.Inductor => Exceeded(
+                component,
                 result.Current.Value,
-                element.Ratings.Current,
+                component.Ratings.Current,
                 Unit.Ampere,
                 "carries",
                 "current"),
@@ -36,7 +38,7 @@ internal static class RatingChecks
         };
 
     private static SimulationDiagnostic? Exceeded(
-        DcElement element,
+        ElaboratedComponent component,
         double value,
         double? rating,
         Unit unit,
@@ -49,8 +51,8 @@ internal static class RatingChecks
         }
 
         return SimulationDiagnostic.RatingExceeded(
-            element.Id,
-            $"{element.Designator} {verb} {new Quantity(Math.Abs(value), unit)}, above its "
+            component.Id,
+            $"{component.Designator} {verb} {new Quantity(Math.Abs(value), unit)}, above its "
             + $"{new Quantity(limit, unit)} {quantityName} rating.");
     }
 }

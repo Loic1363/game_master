@@ -11,7 +11,10 @@ public sealed class EditorMenus
     private const string UndoLabel = "Undo";
     private const string RedoLabel = "Redo";
     private const string ShowGridLabel = "Show grid";
+    private const string WaveformPanelLabel = "Waveform panel";
     private const string PropertiesLabel = "Properties…";
+    private const string TransientLabel = "Transient…";
+    private const string StopLabel = "Stop";
 
     private static readonly ComponentCategory[] PlaceCategories =
     [
@@ -23,28 +26,35 @@ public sealed class EditorMenus
 
     private readonly Func<EditHistory> _history;
     private readonly Func<bool> _hasComponentSelected;
+    private readonly Func<bool> _isSimulating;
     private readonly ComponentCatalog _catalog;
     private readonly PopupMenu _edit = new();
     private readonly PopupMenu _view = new();
+    private readonly PopupMenu _simulate = new();
 
     private int _undoIndex;
     private int _redoIndex;
     private int _propertiesIndex;
     private int _showGridIndex;
+    private int _waveformPanelIndex;
+    private int _stopIndex;
 
     public EditorMenus(
         MenuBar bar,
         Func<EditHistory> history,
         ComponentCatalog catalog,
-        Func<bool> hasComponentSelected)
+        Func<bool> hasComponentSelected,
+        Func<bool> isSimulating)
     {
         ArgumentNullException.ThrowIfNull(bar);
         ArgumentNullException.ThrowIfNull(history);
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(hasComponentSelected);
+        ArgumentNullException.ThrowIfNull(isSimulating);
 
         _history = history;
         _hasComponentSelected = hasComponentSelected;
+        _isSimulating = isSimulating;
         _catalog = catalog;
 
         BuildFile(bar);
@@ -61,6 +71,8 @@ public sealed class EditorMenus
 
     public bool ShowGrid { get; set; } = true;
 
+    public bool ShowWaveformPanel { get; set; }
+
     public void Refresh()
     {
         var history = _history();
@@ -70,7 +82,9 @@ public sealed class EditorMenus
         _edit.SetItemText(_redoIndex, Described(RedoLabel, history.RedoDescription));
         _edit.SetItemDisabled(_redoIndex, !history.CanRedo);
         _edit.SetItemDisabled(_propertiesIndex, !_hasComponentSelected());
+        _simulate.SetItemDisabled(_stopIndex, !_isSimulating());
         _view.SetItemChecked(_showGridIndex, ShowGrid);
+        _view.SetItemChecked(_waveformPanelIndex, ShowWaveformPanel);
     }
 
     private static string Described(string label, string? description) =>
@@ -84,6 +98,8 @@ public sealed class EditorMenus
         AddCommand(menu, "Open…", EditorCommand.FileOpen, EditorAction.Open);
         AddCommand(menu, "Save", EditorCommand.FileSave, EditorAction.Save);
         AddCommand(menu, "Save As…", EditorCommand.FileSaveAs, EditorAction.SaveAs);
+        menu.AddSeparator();
+        AddCommand(menu, "Export SPICE netlist…", EditorCommand.FileExportSpice, null);
         menu.AddSeparator();
         AddCommand(menu, "Quit", EditorCommand.FileQuit, null);
     }
@@ -105,6 +121,7 @@ public sealed class EditorMenus
         _propertiesIndex = _edit.ItemCount - 1;
         _edit.AddSeparator();
         AddCommand(_edit, "Wire tool", EditorCommand.EditWireTool, EditorAction.WireTool);
+        AddCommand(_edit, "Probe tool", EditorCommand.EditProbeTool, EditorAction.ProbeTool);
     }
 
     private void BuildView(MenuBar bar)
@@ -118,6 +135,9 @@ public sealed class EditorMenus
         _view.AddCheckItem(ShowGridLabel, (int)EditorCommand.ViewShowGrid);
         _showGridIndex = _view.ItemCount - 1;
         _view.SetItemChecked(_showGridIndex, ShowGrid);
+        _view.AddCheckItem(WaveformPanelLabel, (int)EditorCommand.ViewWaveformPanel);
+        _waveformPanelIndex = _view.ItemCount - 1;
+        _view.SetItemChecked(_waveformPanelIndex, ShowWaveformPanel);
     }
 
     private void BuildPlace(MenuBar bar)
@@ -148,13 +168,20 @@ public sealed class EditorMenus
 
     private void BuildSimulate(MenuBar bar)
     {
-        var menu = AddMenu(bar, "Simulate");
+        Attach(bar, _simulate, "Simulate");
 
         AddCommand(
-            menu,
+            _simulate,
             "DC operating point",
             EditorCommand.SimulateDcOperatingPoint,
             EditorAction.DcOperatingPoint);
+
+        AddCommand(
+            _simulate, TransientLabel, EditorCommand.SimulateTransient, EditorAction.Transient);
+
+        _simulate.AddSeparator();
+        AddCommand(_simulate, StopLabel, EditorCommand.SimulateStop, null);
+        _stopIndex = _simulate.ItemCount - 1;
     }
 
     private void BuildHelp(MenuBar bar)

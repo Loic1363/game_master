@@ -1,4 +1,5 @@
 using Nodal.Circuit.Commands;
+using Nodal.Circuit.Connectivity;
 using Nodal.Circuit.Editing;
 using Nodal.Circuit.Geometry;
 using Nodal.Circuit.Hit;
@@ -6,6 +7,7 @@ using Nodal.Circuit.Schematics;
 using Nodal.Content.Components;
 using Nodal.Content.Symbols;
 using Nodal.Editor.Tools;
+using Nodal.Editor.Waveforms;
 using Nodal.Foundation.Geometry;
 
 namespace Nodal.Editor;
@@ -37,6 +39,8 @@ public sealed class EditorSession
     public event Action? Changed;
 
     public event Action<ComponentId>? PropertiesRequested;
+
+    public event Action<string?>? RefusalChanged;
 
     public EditHistory History => _history;
 
@@ -98,6 +102,8 @@ public sealed class EditorSession
     }
 
     public void ChooseWire() => Replace(new WireTool(this, _cursor));
+
+    public void ChooseProbe() => Replace(new ProbeTool(this));
 
     public void PointerMoved(GridVector point)
     {
@@ -205,6 +211,15 @@ public sealed class EditorSession
 
     internal SchematicHit? Pick(GridVector point) =>
         SchematicHitTester.Nearest(Schematic, Catalog, _symbols, point, _hitTolerance);
+
+    internal ConnectivityResult Analyze() => ConnectivityAnalyzer.Analyze(Schematic, Catalog);
+
+    internal void Toggle(Probe probe, ConnectivityResult connectivity)
+    {
+        var result = Run(ProbeToggle.Of(Schematic, connectivity, probe));
+
+        RefusalChanged?.Invoke(result.Succeeded ? null : result.Error.Message);
+    }
 
     internal void RequestProperties(ComponentId id) => PropertiesRequested?.Invoke(id);
 

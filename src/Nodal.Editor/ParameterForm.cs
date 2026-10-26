@@ -75,6 +75,7 @@ public sealed class ParameterForm
             : throw new ArgumentException("This field belongs to another form.", nameof(field));
     }
 
-    private static Quantity? CurrentValue(ComponentInstance component, ParameterDefinition parameter) =>
+    private static ParameterValue? CurrentValue(
+        ComponentInstance component, ParameterDefinition parameter) =>
         component.Parameters.TryGetValue(parameter.Name, out var value) ? value : null;
 }

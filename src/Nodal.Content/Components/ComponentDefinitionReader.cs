@@ -246,6 +246,7 @@ internal sealed class ComponentDefinitionReader
 
         if (!TryReadUnit(element, path, out var unit)
             || !TryReadTier(element, path, out var tier)
+            || !TryReadKind(element, path, out var kind)
             || !TryReadQuantity(element, path, ComponentFields.Default, unit, out var defaultValue)
             || !TryReadQuantity(element, path, ComponentFields.Minimum, unit, out var minimum)
             || !TryReadQuantity(element, path, ComponentFields.Maximum, unit, out var maximum)
@@ -256,14 +257,65 @@ internal sealed class ComponentDefinitionReader
 
         if (!BoundsAreOrdered(minimum, maximum, path)
             || !RespectsBounds(defaultValue, minimum, maximum, path)
-            || !BelongsToSeries(series, defaultValue, path))
+            || !BelongsToSeries(series, defaultValue, path)
+            || !IsPlainWaveform(kind, defaultValue, minimum, maximum, series, path))
         {
             return null;
         }
 
         return name.Length > 0 && label.Length > 0
-            ? new ParameterDefinition(name, label, tier, unit, defaultValue, minimum, maximum, series)
+            ? new ParameterDefinition(
+                name, label, tier, unit, defaultValue, minimum, maximum, series, kind)
             : null;
+    }
+
+    private bool IsPlainWaveform(
+        ParameterKind kind,
+        Quantity? defaultValue,
+        Quantity? minimum,
+        Quantity? maximum,
+        StandardSeries? series,
+        string path)
+    {
+        if (kind != ParameterKind.Waveform)
+        {
+            return true;
+        }
+
+        foreach (var forbidden in Forbidden(defaultValue, minimum, maximum, series))
+        {
+            Reject(
+                JsonPath.Field(path, forbidden),
+                $"A waveform parameter cannot declare '{forbidden}'.");
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private static IEnumerable<string> Forbidden(
+        Quantity? defaultValue, Quantity? minimum, Quantity? maximum, StandardSeries? series)
+    {
+        if (defaultValue is not null)
+        {
+            yield return ComponentFields.Default;
+        }
+
+        if (minimum is not null)
+        {
+            yield return ComponentFields.Minimum;
+        }
+
+        if (maximum is not null)
+        {
+            yield return ComponentFields.Maximum;
+        }
+
+        if (series is not null)
+        {
+            yield return ComponentFields.Series;
+        }
     }
 
     private string ReadParameterName(JsonElement element, string path)
@@ -325,6 +377,39 @@ internal sealed class ComponentDefinitionReader
         Reject(
             JsonPath.Field(path, ComponentFields.Tier),
             $"Unknown tier '{name}'. Known tiers are {ComponentVocabulary.TierNames}.");
+
+        return false;
+    }
+
+    private bool TryReadKind(JsonElement element, string path, out ParameterKind kind)
+    {
+        kind = ParameterKind.Quantity;
+
+        if (!element.TryGetProperty(ComponentFields.Kind, out var field))
+        {
+            return true;
+        }
+
+        if (field.ValueKind != JsonValueKind.String)
+        {
+            Reject(
+                JsonPath.Field(path, ComponentFields.Kind),
+                $"Field '{ComponentFields.Kind}' must be "
+                + $"{JsonValueKindNames.Of(JsonValueKind.String)}.");
+
+            return false;
+        }
+
+        var name = field.GetString() ?? string.Empty;
+
+        if (ComponentVocabulary.TryKind(name, out kind))
+        {
+            return true;
+        }
+
+        Reject(
+            JsonPath.Field(path, ComponentFields.Kind),
+            $"Unknown parameter kind '{name}'. Known kinds are {ComponentVocabulary.KindNames}.");
 
         return false;
     }

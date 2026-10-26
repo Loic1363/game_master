@@ -1,5 +1,6 @@
 using Godot;
 using Nodal.Circuit.Symbols;
+using Nodal.Game.Style;
 
 namespace Nodal.Game.Rendering;
 
@@ -37,6 +38,23 @@ public static class CanvasText
         canvas.DrawCircle(new Vector2(box.End.X, center.Y), half.Y, background);
 
         DrawCentered(canvas, font, center, text, fontSize, foreground);
+    }
+
+    public static void DrawRightAligned(
+        CanvasItem canvas, Font font, Vector2 anchor, string text, int fontSize, Color color)
+    {
+        ArgumentNullException.ThrowIfNull(font);
+
+        var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, fontSize);
+
+        DrawAligned(
+            canvas,
+            font,
+            new Vector2(anchor.X - size.X, anchor.Y),
+            LabelAlignment.Left,
+            text,
+            fontSize,
+            color);
     }
 
     public static void DrawAligned(

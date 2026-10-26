@@ -4,6 +4,7 @@ using Nodal.Circuit.Geometry;
 using Nodal.Circuit.Symbols;
 using Nodal.Content.Symbols;
 using Nodal.Foundation.Geometry;
+using Nodal.Game.Style;
 using Orientation = Nodal.Circuit.Geometry.Orientation;
 
 namespace Nodal.Game.Rendering;

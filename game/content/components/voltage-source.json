@@ -12,6 +12,7 @@
   ],
   "parameters": [
     { "name": "voltage", "label": "Voltage", "tier": "basic", "unit": "volt", "default": "5" },
+    { "name": "function", "label": "Function", "tier": "basic", "kind": "waveform", "unit": "volt" },
     { "name": "series-resistance", "label": "Series resistance", "tier": "advanced", "unit": "ohm", "min": "0" }
   ]
 }

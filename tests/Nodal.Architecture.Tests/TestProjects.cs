@@ -31,6 +31,7 @@ internal static class TestProjects
             CoreLayers.Circuit,
             CoreLayers.Simulation,
             CoreLayers.Editor,
+            CoreLayers.Cli,
         ],
     };
 

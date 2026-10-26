@@ -1,5 +1,6 @@
 using Nodal.Content.Components;
 using Nodal.Foundation.Quantities;
+using Nodal.Foundation.Waveforms;
 
 namespace Nodal.Editor;
 
@@ -13,9 +14,9 @@ public sealed class ParameterField
     private const string NoUnitMessage = "Expected a value with no unit.";
     private const double Decade = 10;
 
-    private readonly Quantity? _original;
+    private readonly ParameterValue? _original;
 
-    internal ParameterField(ParameterDefinition definition, Quantity? current)
+    internal ParameterField(ParameterDefinition definition, ParameterValue? current)
     {
         Definition = definition;
         _original = current;
@@ -27,11 +28,13 @@ public sealed class ParameterField
 
     public string Text { get; private set; } = string.Empty;
 
-    public Quantity? Value { get; private set; }
+    public ParameterValue? Value { get; private set; }
 
     public string? Error { get; private set; }
 
     public Quantity? Suggestion { get; private set; }
+
+    public bool IsWaveform => Definition.IsWaveform;
 
     public bool IsValid => Error is null;
 
@@ -39,7 +42,7 @@ public sealed class ParameterField
 
     public bool HasChanged => Error is null && Value != _original;
 
-    public bool IsSteppable => Value is { Value: > 0 };
+    public bool IsSteppable => Value is { IsQuantity: true } value && value.Quantity.Value > 0;
 
     internal void Write(string text)
     {
@@ -58,12 +61,12 @@ public sealed class ParameterField
 
     internal void Step(StepDirection direction)
     {
-        if (Value is not { } current || current.Value <= 0)
+        if (Value is not { IsQuantity: true } value || value.Quantity.Value <= 0)
         {
             return;
         }
 
-        Fill(new Quantity(Stepped(current.Value, direction), Definition.Unit));
+        Fill(new Quantity(Stepped(value.Quantity.Value, direction), Definition.Unit));
     }
 
     private double Stepped(double value, StepDirection direction)
@@ -78,7 +81,7 @@ public sealed class ParameterField
         return direction == StepDirection.Up ? value * Decade : value / Decade;
     }
 
-    private void Fill(Quantity? value) => Write(value?.ToString() ?? string.Empty);
+    private void Fill(ParameterValue? value) => Write(value?.ToString() ?? string.Empty);
 
     private void Validate()
     {
@@ -95,6 +98,30 @@ public sealed class ParameterField
             return;
         }
 
+        if (Definition.IsWaveform)
+        {
+            ValidateWaveform(text);
+
+            return;
+        }
+
+        ValidateQuantity(text);
+    }
+
+    private void ValidateWaveform(string text)
+    {
+        if (WaveformText.TryParse(text, out var waveform, out var error))
+        {
+            Value = ParameterValue.Of(waveform, Definition.Unit);
+
+            return;
+        }
+
+        Error = WaveformErrorText.Of(error);
+    }
+
+    private void ValidateQuantity(string text)
+    {
         if (!Quantity.TryParse(text, Definition.Unit, out var parsed, out var parseError))
         {
             Error = MessageOf(parseError);

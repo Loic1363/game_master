@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "nodes": [
+    "0",
+    "N1"
+  ],
+  "components": [
+    {
+      "designator": "V1",
+      "elements": [
+        "V1"
+      ]
+    },
+    {
+      "designator": "R1",
+      "elements": [
+        "R1"
+      ]
+    }
+  ],
+  "transient": {
+    "stopTime": 0.003,
+    "outputStep": 1.5E-05,
+    "maxStep": 5E-08,
+    "startFromZero": false
+  }
+}

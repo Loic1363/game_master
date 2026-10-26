@@ -3,6 +3,7 @@ using Nodal.Circuit.Geometry;
 using Nodal.Circuit.Schematics;
 using Nodal.Content.Components;
 using Nodal.Foundation.Quantities;
+using Nodal.Foundation.Waveforms;
 using Xunit;
 
 namespace Nodal.Circuit.Tests.Commands;
@@ -239,6 +240,107 @@ public class SetParameterTests
         id = Schematic.Empty.NextComponentId;
 
         return new AddComponent("capacitor", new GridPoint(1, 2), Orientation.Default)
+            .Succeed(Schematic.Empty);
+    }
+
+    [Fact]
+    public void AFunctionIsSetAsAWaveform()
+    {
+        var schematic = Source(out var id);
+        var waveform = new PulseWaveform(0, 12, 0, 1e-9, 1e-9, 0.02, 0.04);
+
+        var updated = new SetParameter(id, "function", ParameterValue.Of(waveform, Unit.Volt))
+            .Succeed(schematic);
+
+        Assert.True(updated.TryGetComponent(id, out var component));
+        Assert.True(component.Parameters["function"].TryGetWaveform(out var stored));
+        Assert.Equal(waveform, stored);
+    }
+
+    [Fact]
+    public void SettingAFunctionDescribesTheEditWithItsText()
+    {
+        var schematic = Source(out var id);
+        var waveform = new PulseWaveform(0, 12, 0, 1e-9, 1e-9, 0.02, 0.04);
+        var command = new SetParameter(id, "function", ParameterValue.Of(waveform, Unit.Volt));
+
+        Assert.Equal(
+            "Set V1 function to PULSE(0 12 0 1n 1n 20m 40m)",
+            command.DescriptionOf(schematic));
+    }
+
+    [Fact]
+    public void AQuantityIsRefusedForAWaveformParameter()
+    {
+        var schematic = Source(out var id);
+
+        var error = new SetParameter(id, "function", new Quantity(5, Unit.Volt))
+            .Reject(schematic);
+
+        Assert.Equal(EditErrorCode.KindMismatch, error.Code);
+        Assert.Equal(
+            "The parameter function of V1 expects a waveform value, not a quantity one.",
+            error.Message);
+    }
+
+    [Fact]
+    public void AWaveformIsRefusedForAQuantityParameter()
+    {
+        var schematic = Source(out var id);
+        var waveform = new PulseWaveform(0, 12, 0, 1e-9, 1e-9, 0.02, 0.04);
+
+        var error = new SetParameter(id, "voltage", ParameterValue.Of(waveform, Unit.Volt))
+            .Reject(schematic);
+
+        Assert.Equal(EditErrorCode.KindMismatch, error.Code);
+        Assert.Equal(
+            "The parameter voltage of V1 expects a quantity value, not a waveform one.",
+            error.Message);
+    }
+
+    [Fact]
+    public void AWaveformInTheWrongUnitIsRefused()
+    {
+        var schematic = Source(out var id);
+        var waveform = new PulseWaveform(0, 12, 0, 1e-9, 1e-9, 0.02, 0.04);
+
+        var error = new SetParameter(id, "function", ParameterValue.Of(waveform, Unit.Ampere))
+            .Reject(schematic);
+
+        Assert.Equal(EditErrorCode.UnitMismatch, error.Code);
+    }
+
+    [Fact]
+    public void AnInvalidWaveformIsRefused()
+    {
+        var schematic = Source(out var id);
+        var waveform = new PulseWaveform(0, 12, 0, 1e-3, 1e-3, 1e-3, 1e-3);
+
+        var error = new SetParameter(id, "function", ParameterValue.Of(waveform, Unit.Volt))
+            .Reject(schematic);
+
+        Assert.Equal(EditErrorCode.InvalidWaveform, error.Code);
+        Assert.Equal("The function of V1 is not a valid Pulse function.", error.Message);
+    }
+
+    [Fact]
+    public void SettingTheFunctionItAlreadyHasReturnsTheSameSchematic()
+    {
+        var schematic = Source(out var id);
+        var waveform = new PulseWaveform(0, 12, 0, 1e-9, 1e-9, 0.02, 0.04);
+        var value = ParameterValue.Of(waveform, Unit.Volt);
+
+        var once = new SetParameter(id, "function", value).Succeed(schematic);
+        var twice = new SetParameter(id, "function", value).Succeed(once);
+
+        Assert.Same(once, twice);
+    }
+
+    private static Schematic Source(out ComponentId id)
+    {
+        id = ComponentId.First;
+
+        return new AddComponent("voltage-source", new GridPoint(0, 0), Orientation.Default)
             .Succeed(Schematic.Empty);
     }
 

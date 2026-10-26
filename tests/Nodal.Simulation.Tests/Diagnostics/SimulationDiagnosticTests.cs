@@ -47,7 +47,7 @@ public class SimulationDiagnosticTests
 
         Assert.Equal(SimulationSeverity.Warning, diagnostic.Severity);
         Assert.Equal(
-            "N3 has no DC path to ground; its voltage is undefined (shown as 0 V).",
+            "N3 has no DC path to ground; its voltage is undefined.",
             diagnostic.Message);
         Assert.Equal(["N3"], diagnostic.Nets);
     }
@@ -87,8 +87,7 @@ public class SimulationDiagnosticTests
     public void TheTextFormShowsSeverityAndCode()
     {
         Assert.Equal(
-            "Warning NoDcPath: N3 has no DC path to ground; its voltage is undefined "
-            + "(shown as 0 V).",
+            "Warning NoDcPath: N3 has no DC path to ground; its voltage is undefined.",
             SimulationDiagnostic.NoDcPath("N3").ToString());
     }
 

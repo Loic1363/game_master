@@ -10,7 +10,10 @@ public sealed record ParameterDefinition(
     Quantity? Default,
     Quantity? Minimum,
     Quantity? Maximum,
-    StandardSeries? Series)
+    StandardSeries? Series,
+    ParameterKind Kind = ParameterKind.Quantity)
 {
     public bool IsRequired => Default is not null;
+
+    public bool IsWaveform => Kind == ParameterKind.Waveform;
 }

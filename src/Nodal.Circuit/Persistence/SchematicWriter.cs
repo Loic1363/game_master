@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
 using Nodal.Circuit.Schematics;
@@ -53,7 +54,96 @@ internal static class SchematicWriter
         }
 
         writer.WriteEndArray();
+
+        var analysis = Pruned(schematic);
+
+        if (!analysis.IsEmpty)
+        {
+            WriteAnalysis(writer, analysis);
+        }
+
         writer.WriteEndObject();
+    }
+
+    private static AnalysisSettings Pruned(Schematic schematic)
+    {
+        var analysis = schematic.Analysis;
+        var kept = analysis.Probes.Where(probe => ProbeTargets.Exists(probe, schematic));
+
+        return analysis with { Probes = [.. kept] };
+    }
+
+    private static void WriteAnalysis(Utf8JsonWriter writer, AnalysisSettings analysis)
+    {
+        writer.WriteStartObject(SchematicFields.Analysis);
+
+        if (analysis.Transient is { } transient)
+        {
+            writer.WriteStartObject(SchematicFields.Transient);
+            writer.WriteNumber(SchematicFields.StopTime, transient.StopTime);
+            WriteOptionalTime(writer, SchematicFields.OutputStep, transient.OutputStep);
+            WriteOptionalTime(writer, SchematicFields.MaxStep, transient.MaxStep);
+            writer.WriteBoolean(SchematicFields.StartFromZero, transient.StartFromZero);
+            writer.WriteEndObject();
+        }
+
+        if (!analysis.Probes.IsEmpty)
+        {
+            WriteProbes(writer, analysis.Probes);
+        }
+
+        writer.WriteEndObject();
+    }
+
+    private static void WriteProbes(Utf8JsonWriter writer, ImmutableArray<Probe> probes)
+    {
+        writer.WriteStartArray(SchematicFields.Probes);
+
+        foreach (var probe in probes)
+        {
+            writer.WriteStartObject();
+
+            switch (probe)
+            {
+                case PinVoltageProbe pin:
+                    writer.WriteStartObject(SchematicFields.Voltage);
+                    writer.WriteNumber(
+                        SchematicFields.ProbeComponent, pin.Pin.ComponentId.Value);
+                    writer.WriteString(SchematicFields.Pin, pin.Pin.PinName);
+                    writer.WriteEndObject();
+                    break;
+
+                case WireVoltageProbe wire:
+                    writer.WriteStartObject(SchematicFields.Voltage);
+                    writer.WriteNumber(SchematicFields.ProbeWire, wire.Wire.Value);
+                    writer.WriteEndObject();
+                    break;
+
+                case ComponentCurrentProbe current:
+                    writer.WriteStartObject(SchematicFields.Current);
+                    writer.WriteNumber(
+                        SchematicFields.ProbeComponent, current.Component.Value);
+                    writer.WriteEndObject();
+                    break;
+            }
+
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteOptionalTime(
+        Utf8JsonWriter writer, string fieldName, double? seconds)
+    {
+        if (seconds is { } value)
+        {
+            writer.WriteNumber(fieldName, value);
+
+            return;
+        }
+
+        writer.WriteNull(fieldName);
     }
 
     private static void WriteComponent(Utf8JsonWriter writer, ComponentInstance component)
@@ -71,11 +161,24 @@ internal static class SchematicWriter
 
         foreach (var parameter in OrderedByName(component))
         {
-            writer.WriteNumber(parameter.Key, parameter.Value.Value);
+            WriteParameter(writer, parameter.Key, parameter.Value);
         }
 
         writer.WriteEndObject();
         writer.WriteEndObject();
+    }
+
+    private static void WriteParameter(Utf8JsonWriter writer, string name, ParameterValue value)
+    {
+        if (value.TryGetWaveform(out var waveform))
+        {
+            writer.WritePropertyName(name);
+            WaveformJson.Write(writer, waveform);
+
+            return;
+        }
+
+        writer.WriteNumber(name, value.Quantity.Value);
     }
 
     private static void WriteWire(Utf8JsonWriter writer, Wire wire)
@@ -95,6 +198,7 @@ internal static class SchematicWriter
         writer.WriteEndArray();
     }
 
-    private static IEnumerable<KeyValuePair<string, Quantity>> OrderedByName(ComponentInstance component) =>
+    private static IEnumerable<KeyValuePair<string, ParameterValue>> OrderedByName(
+        ComponentInstance component) =>
         component.Parameters.OrderBy(parameter => parameter.Key, StringComparer.Ordinal);
 }

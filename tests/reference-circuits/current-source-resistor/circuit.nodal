@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "kind": "schematic",
+  "createdWith": "Nodal 0.0.1",
+  "nextComponentId": 5,
+  "nextWireId": 2,
+  "components": [
+    {
+      "id": 1,
+      "definition": "current-source",
+      "designator": "I1",
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {
+        "current": 0.001
+      }
+    },
+    {
+      "id": 2,
+      "definition": "ground",
+      "designator": "GND1",
+      "x": 0,
+      "y": 2,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {}
+    },
+    {
+      "id": 3,
+      "definition": "resistor",
+      "designator": "R1",
+      "x": 6,
+      "y": 0,
+      "rotation": 90,
+      "mirrored": false,
+      "parameters": {
+        "resistance": 1000
+      }
+    },
+    {
+      "id": 4,
+      "definition": "ground",
+      "designator": "GND2",
+      "x": 6,
+      "y": 2,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": 1,
+      "from": [
+        0,
+        -2
+      ],
+      "to": [
+        6,
+        -2
+      ]
+    }
+  ]
+}

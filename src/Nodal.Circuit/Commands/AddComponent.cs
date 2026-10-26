@@ -32,9 +32,9 @@ public sealed record AddComponent(string DefinitionId, GridPoint Position, Orien
         return CommandResult.Success(schematic.WithComponent(component), $"Add {designator}");
     }
 
-    private static ImmutableSortedDictionary<string, Quantity> DefaultParameters(
+    private static ImmutableSortedDictionary<string, ParameterValue> DefaultParameters(
         ComponentDefinition definition) =>
         definition.Parameters.Where(parameter => parameter.Default is not null).Aggregate(
-            ImmutableSortedDictionary.Create<string, Quantity>(StringComparer.Ordinal),
+            ImmutableSortedDictionary.Create<string, ParameterValue>(StringComparer.Ordinal),
             (parameters, parameter) => parameters.Add(parameter.Name, parameter.Default!.Value));
 }

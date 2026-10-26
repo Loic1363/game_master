@@ -31,6 +31,12 @@ internal static class ComponentVocabulary
         ["advanced"] = ParameterTier.Advanced,
     };
 
+    private static readonly Dictionary<string, ParameterKind> KindByName = new(StringComparer.Ordinal)
+    {
+        ["quantity"] = ParameterKind.Quantity,
+        ["waveform"] = ParameterKind.Waveform,
+    };
+
     private static readonly Dictionary<string, StandardSeries> SeriesByName = new(StringComparer.Ordinal)
     {
         ["E6"] = StandardSeries.E6,
@@ -44,6 +50,8 @@ internal static class ComponentVocabulary
 
     public static string TierNames => Join(TierByName.Keys);
 
+    public static string KindNames => Join(KindByName.Keys);
+
     public static string SeriesNames => Join(SeriesByName.Keys);
 
     public static bool TryCategory(string name, out ComponentCategory category) =>
@@ -52,6 +60,9 @@ internal static class ComponentVocabulary
     public static bool TryUnit(string name, out Unit unit) => UnitByName.TryGetValue(name, out unit);
 
     public static bool TryTier(string name, out ParameterTier tier) => TierByName.TryGetValue(name, out tier);
+
+    public static bool TryKind(string name, out ParameterKind kind) =>
+        KindByName.TryGetValue(name, out kind);
 
     public static bool TrySeries(string name, out StandardSeries series) =>
         SeriesByName.TryGetValue(name, out series);

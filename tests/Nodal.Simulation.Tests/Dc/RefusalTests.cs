@@ -38,22 +38,24 @@ public class RefusalTests
     }
 
     [Fact]
-    public void ADiodeIsNotSupportedYet()
+    public void ADiodeIsSupportedAndNoLongerRefused()
     {
-        var schematic = Schematic.Empty
+        var solution = Schematic.Empty
             .Add(Circuits.VoltageSource, 0, 0)
             .Add(Circuits.Ground, 0, 2)
-            .Add("diode", 6, 0, Circuits.FirstPinUp)
-            .Add(Circuits.Ground, 6, 2)
-            .Wire(0, -2, 6, -2);
+            .Add(Circuits.Resistor, 6, 0, Circuits.FirstPinUp)
+            .Add(Circuits.Diode, 6, 6, Circuits.FirstPinUp)
+            .Add(Circuits.Ground, 6, 8)
+            .Wire(0, -2, 6, -2)
+            .Wire(6, 2, 6, 4)
+            .Set("V1", "voltage", 5)
+            .Set("R1", "resistance", 1000)
+            .Solve();
 
-        var solution = schematic.Solve();
-
-        Assert.False(solution.IsSolved);
-        Assert.Equal(
-            "D1 (Diode) is not supported by the simulator yet.",
-            solution.Diagnostics.Single().Message);
-        Assert.Equal([schematic.IdOf("D1")], solution.Diagnostics.Single().Components);
+        Assert.True(solution.IsSolved);
+        Assert.DoesNotContain(
+            SimulationDiagnosticCode.UnsupportedComponent,
+            solution.Diagnostics.Select(diagnostic => diagnostic.Code));
     }
 
     [Theory]
@@ -81,8 +83,8 @@ public class RefusalTests
     {
         var schematic = Schematic.Empty
             .Add(Circuits.Ground, 0, 0)
-            .Add("diode", 6, 0)
-            .Add("diode", 12, 0);
+            .Add("nmos", 6, 0)
+            .Add("npn", 12, 0);
 
         var unsupported = schematic.Solve().Diagnostics
             .Where(diagnostic => diagnostic.Code == SimulationDiagnosticCode.UnsupportedComponent)
@@ -100,7 +102,7 @@ public class RefusalTests
             "X1",
             GridPoint.Origin,
             Orientation.Default,
-            ImmutableSortedDictionary.Create<string, Quantity>(StringComparer.Ordinal));
+            ImmutableSortedDictionary.Create<string, ParameterValue>(StringComparer.Ordinal));
 
         var schematic = Schematic.Create(
             [unknown], [], new ComponentId(ComponentId.First.Value + 1), WireId.First);

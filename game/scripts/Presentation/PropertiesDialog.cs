@@ -4,7 +4,8 @@ using Nodal.Circuit.Schematics;
 using Nodal.Content.Components;
 using Nodal.Editor;
 using Nodal.Foundation.Quantities;
-using Nodal.Game.Rendering;
+using Nodal.Foundation.Waveforms;
+using Nodal.Game.Style;
 
 namespace Nodal.Game.Presentation;
 
@@ -17,6 +18,8 @@ public sealed partial class PropertiesDialog : ConfirmationDialog
     private const string BasicSectionTitle = "Basic";
     private const string AdvancedSectionTitle = "Advanced";
     private const string SuggestionPrefix = "Use ";
+    private const string NoFunctionLabel = "None";
+    private const int NoFunctionId = -1;
     private const int LabelMinimumWidth = 230;
     private const int FieldMinimumWidth = 150;
     private const int DialogMinimumWidth = 560;
@@ -149,6 +152,12 @@ public sealed partial class PropertiesDialog : ConfirmationDialog
 
         line.AddChild(RowLabel(field.Definition));
         line.AddChild(edit);
+
+        if (field.IsWaveform)
+        {
+            line.AddChild(TemplatePicker(row));
+        }
+
         line.AddChild(suggestion);
 
         container.AddChild(line);
@@ -157,6 +166,42 @@ public sealed partial class PropertiesDialog : ConfirmationDialog
         _rows.Add(row);
 
         return container;
+    }
+
+    private OptionButton TemplatePicker(ParameterRow row)
+    {
+        var picker = DialogStyle.TemplatePicker();
+
+        picker.AddItem(NoFunctionLabel, NoFunctionId);
+
+        foreach (var kind in Enum.GetValues<WaveformKind>())
+        {
+            picker.AddItem(NameOf(kind), (int)kind);
+        }
+
+        picker.Selected = 0;
+        picker.ItemSelected += id => OnTemplateChosen(row, picker, id);
+
+        return picker;
+    }
+
+    private static string NameOf(WaveformKind kind) =>
+        WaveformText.TemplateOf(kind).Split('(')[0];
+
+    private void OnTemplateChosen(ParameterRow row, OptionButton picker, long index)
+    {
+        var id = picker.GetItemId((int)index);
+
+        row.Edit.Text = id == NoFunctionId
+            ? string.Empty
+            : WaveformText.TemplateOf((WaveformKind)id);
+
+        picker.Selected = 0;
+
+        OnTextChanged(row, row.Edit.Text);
+
+        row.Edit.CaretColumn = row.Edit.Text.Length;
+        row.Edit.GrabFocus();
     }
 
     private static Label RowLabel(ParameterDefinition definition) => new()

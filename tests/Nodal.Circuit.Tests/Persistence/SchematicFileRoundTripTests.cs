@@ -53,7 +53,7 @@ public class SchematicFileRoundTripTests
         Assert.True(result.Loaded);
         Assert.Empty(result.Diagnostics);
         Assert.True(result.Schematic.TryGetComponent(ComponentId.First, out var component));
-        Assert.Equal(value, component.Parameters[PowerRating].Value);
+        Assert.Equal(value, component.Parameters[PowerRating].Quantity.Value);
         SchematicAssert.Equal(schematic, result.Schematic);
     }
 

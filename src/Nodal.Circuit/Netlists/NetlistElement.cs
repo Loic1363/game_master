@@ -9,7 +9,7 @@ public sealed record NetlistElement(
     ComponentId Id,
     string Designator,
     string DefinitionId,
-    ImmutableSortedDictionary<string, Quantity> Parameters,
+    ImmutableSortedDictionary<string, ParameterValue> Parameters,
     ImmutableArray<PinConnection> Pins)
 {
     public bool Equals(NetlistElement? other) =>

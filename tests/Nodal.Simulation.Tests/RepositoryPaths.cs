@@ -8,6 +8,12 @@ internal static class RepositoryPaths
 
     public static string ComponentsDirectory => Path.Combine(Root, "game", "content", "components");
 
+    public static string ReferenceCircuitsDirectory =>
+        Path.Combine(Root, "tests", "reference-circuits");
+
+    public static string SpiceDirectory =>
+        Path.Combine(Root, "tests", "Nodal.Simulation.Tests", "Spice");
+
     private static string FindRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

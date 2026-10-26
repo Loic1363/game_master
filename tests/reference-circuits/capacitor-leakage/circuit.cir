@@ -1,0 +1,8 @@
+* Nodal 0.0.1 export
+V1 N1 0 10
+R1 N1 N2 100
+C1 N2 0 1E-07
+RC1 N2 0 1000000
+.model NODAL_D D(IS=1e-14 N=1)
+.options TNOM=27
+.end

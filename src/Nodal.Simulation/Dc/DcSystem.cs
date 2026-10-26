@@ -1,121 +1,77 @@
 using System.Collections.Immutable;
-using Nodal.Simulation.LinearAlgebra;
+using Nodal.Simulation.Mna;
 
 namespace Nodal.Simulation.Dc;
 
-internal sealed class DcSystem
+internal static class DcSystem
 {
-    private DcSystem(DenseMatrix matrix, double[] rightHandSide, DcUnknowns unknowns)
-    {
-        Matrix = matrix;
-        RightHandSide = rightHandSide;
-        Unknowns = unknowns;
-    }
-
-    public DenseMatrix Matrix { get; }
-
-    public double[] RightHandSide { get; }
-
-    public DcUnknowns Unknowns { get; }
-
-    public static DcSystem Build(
-        ImmutableArray<string> netNames,
+    public static MnaStamps Build(
+        MnaUnknowns unknowns,
         ImmutableArray<DcElement> elements,
-        ImmutableArray<string> netsWithoutDcPath)
+        ImmutableArray<string> netsWithoutDcPath,
+        DcOptions options,
+        DcBias bias)
     {
-        var unknowns = new DcUnknowns(netNames, elements);
-        var system = new DcSystem(
-            new DenseMatrix(unknowns.Size), new double[unknowns.Size], unknowns);
+        var stamps = new MnaStamps(unknowns.Size);
 
         for (var index = 0; index < elements.Length; index++)
         {
-            system.Stamp(elements[index], unknowns.BranchOf(index));
+            Stamp(stamps, unknowns, elements[index], unknowns.BranchOf(index), bias, index);
         }
 
         foreach (var name in netsWithoutDcPath)
         {
-            system.StampGmin(unknowns.NodeOf(name));
+            stamps.Shunt(unknowns.NodeOf(name), options.Gmin);
         }
 
-        return system;
+        for (var node = 0; node < unknowns.NodeCount; node++)
+        {
+            stamps.Shunt(node, bias.NodeGmin);
+        }
+
+        return stamps;
     }
 
-    private void Stamp(DcElement element, int branch)
+    private static void Stamp(
+        MnaStamps stamps,
+        MnaUnknowns unknowns,
+        DcElement element,
+        int branch,
+        DcBias bias,
+        int index)
     {
-        var plus = Unknowns.NodeOf(element.FirstNet);
-        var minus = Unknowns.NodeOf(element.SecondNet);
+        var plus = unknowns.NodeOf(element.FirstNode);
+        var minus = unknowns.NodeOf(element.SecondNode);
 
         if (element.Conductance is { } conductance)
         {
-            StampConductance(plus, minus, conductance);
+            stamps.Conductance(plus, minus, conductance);
         }
 
         if (element.Branch is { } definition)
         {
-            StampBranch(branch, plus, minus, definition);
+            stamps.Branch(
+                branch,
+                plus,
+                minus,
+                definition.Resistance,
+                definition.Voltage * bias.SourceScale);
         }
 
         if (element.SourceCurrent != 0)
         {
-            StampCurrent(plus, minus, element.SourceCurrent);
-        }
-    }
-
-    private void StampConductance(int plus, int minus, double conductance)
-    {
-        if (plus >= 0)
-        {
-            Matrix.Add(plus, plus, conductance);
+            stamps.Current(plus, minus, element.SourceCurrent * bias.SourceScale);
         }
 
-        if (minus >= 0)
+        if (element.IsNonlinear)
         {
-            Matrix.Add(minus, minus, conductance);
-        }
+            var voltage = bias.JunctionVoltages[index];
 
-        if (plus >= 0 && minus >= 0)
-        {
-            Matrix.Add(plus, minus, -conductance);
-            Matrix.Add(minus, plus, -conductance);
-        }
-    }
-
-    private void StampBranch(int branch, int plus, int minus, DcBranch definition)
-    {
-        if (plus >= 0)
-        {
-            Matrix.Add(plus, branch, 1);
-            Matrix.Add(branch, plus, 1);
-        }
-
-        if (minus >= 0)
-        {
-            Matrix.Add(minus, branch, -1);
-            Matrix.Add(branch, minus, -1);
-        }
-
-        Matrix.Add(branch, branch, -definition.Resistance);
-        RightHandSide[branch] += definition.Voltage;
-    }
-
-    private void StampCurrent(int plus, int minus, double current)
-    {
-        if (plus >= 0)
-        {
-            RightHandSide[plus] += current;
-        }
-
-        if (minus >= 0)
-        {
-            RightHandSide[minus] -= current;
-        }
-    }
-
-    private void StampGmin(int node)
-    {
-        if (node >= 0)
-        {
-            Matrix.Add(node, node, DcAnalysis.Gmin);
+            stamps.Junction(
+                plus,
+                minus,
+                DiodeModel.Conductance(voltage),
+                DiodeModel.EquivalentCurrent(voltage));
         }
     }
 }

@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
 using Nodal.Foundation.Collections;
+using Nodal.Simulation.Elaboration;
+using Nodal.Simulation.Mna;
 
 namespace Nodal.Simulation.Dc;
 
@@ -8,14 +10,14 @@ internal static class VoltageBranchCycles
     public static SingularCause? Find(
         ImmutableArray<string> netNames, ImmutableArray<DcElement> elements)
     {
-        var indexByNet = DcPaths.IndexByNet(netNames);
+        var indexByNet = MnaPaths.IndexByNet(netNames);
         var joined = new DisjointSet(netNames.Length);
         var accepted = new List<BranchEdge>();
 
         foreach (var element in elements.Where(candidate => candidate.HasIdealBranch))
         {
             var edge = new BranchEdge(
-                element, indexByNet[element.FirstNet], indexByNet[element.SecondNet]);
+                element, indexByNet[element.FirstNode], indexByNet[element.SecondNode]);
 
             if (edge.First == edge.Second)
             {
@@ -77,8 +79,8 @@ internal static class VoltageBranchCycles
 
         return kinds[0] switch
         {
-            DcModelKind.VoltageSource => "ideal voltage sources",
-            DcModelKind.Inductor => "ideal inductors",
+            PrimitiveKind.VoltageSource => "ideal voltage sources",
+            PrimitiveKind.Inductor => "ideal inductors",
             _ => "zero-resistance branches",
         };
     }

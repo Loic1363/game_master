@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "kind": "schematic",
+  "createdWith": "Nodal 0.0.1",
+  "nextComponentId": 6,
+  "nextWireId": 3,
+  "components": [
+    {
+      "id": 1,
+      "definition": "voltage-source",
+      "designator": "V1",
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {
+        "function": {
+          "pwl": {
+            "points": [
+              [
+                0,
+                0
+              ],
+              [
+                0.0002,
+                5
+              ],
+              [
+                0.0006,
+                5
+              ],
+              [
+                0.0008,
+                -2
+              ],
+              [
+                0.0012,
+                0
+              ]
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "definition": "ground",
+      "designator": "GND1",
+      "x": 0,
+      "y": 2,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {}
+    },
+    {
+      "id": 3,
+      "definition": "resistor",
+      "designator": "R1",
+      "x": 6,
+      "y": 0,
+      "rotation": 90,
+      "mirrored": false,
+      "parameters": {
+        "resistance": 1000
+      }
+    },
+    {
+      "id": 4,
+      "definition": "capacitor",
+      "designator": "C1",
+      "x": 6,
+      "y": 6,
+      "rotation": 90,
+      "mirrored": false,
+      "parameters": {
+        "capacitance": 1e-07
+      }
+    },
+    {
+      "id": 5,
+      "definition": "ground",
+      "designator": "GND2",
+      "x": 6,
+      "y": 8,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": 1,
+      "from": [
+        0,
+        -2
+      ],
+      "to": [
+        6,
+        -2
+      ]
+    },
+    {
+      "id": 2,
+      "from": [
+        6,
+        2
+      ],
+      "to": [
+        6,
+        4
+      ]
+    }
+  ],
+  "analysis": {
+    "transient": {
+      "stopTime": 0.0015,
+      "outputStep": 7.5e-06,
+      "maxStep": 2.5e-07,
+      "startFromZero": false
+    }
+  }
+}

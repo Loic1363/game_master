@@ -23,8 +23,8 @@ internal sealed class SchematicReader
 
     private SchematicReader(ComponentCatalog catalog) => _catalog = catalog;
 
-    private static ImmutableSortedDictionary<string, Quantity> NoParameters { get; } =
-        ImmutableSortedDictionary.Create<string, Quantity>(StringComparer.Ordinal);
+    private static ImmutableSortedDictionary<string, ParameterValue> NoParameters { get; } =
+        ImmutableSortedDictionary.Create<string, ParameterValue>(StringComparer.Ordinal);
 
     public static SchematicReadResult Read(string text, ComponentCatalog catalog) =>
         new SchematicReader(catalog).ReadFile(text);
@@ -72,6 +72,7 @@ internal sealed class SchematicReader
 
         var components = ReadComponents(root);
         var wires = ReadWires(root);
+        var analysis = ReadAnalysis(root, components, wires);
 
         RejectDuplicateComponents(components);
         RejectDuplicateWires(wires);
@@ -93,7 +94,381 @@ internal sealed class SchematicReader
         return _rejected
             ? Result(null)
             : Result(Schematic.Create(
-                components, wires, new ComponentId(nextComponentId), new WireId(nextWireId)));
+                components,
+                wires,
+                new ComponentId(nextComponentId),
+                new WireId(nextWireId),
+                analysis));
+    }
+
+    private AnalysisSettings ReadAnalysis(
+        JsonElement root,
+        ImmutableArray<ComponentInstance> components,
+        ImmutableArray<Wire> wires)
+    {
+        if (!root.TryGetProperty(SchematicFields.Analysis, out var element))
+        {
+            return AnalysisSettings.None;
+        }
+
+        var path = JsonPath.Field(JsonPath.Root, SchematicFields.Analysis);
+
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            Warn(path, $"'{SchematicFields.Analysis}' must be an object; dropped.");
+
+            return AnalysisSettings.None;
+        }
+
+        WarnUnknownFields(element, path, SchematicFields.Analyses);
+
+        return new AnalysisSettings(
+            ReadTransientSettings(element, path),
+            ReadProbes(element, path, components, wires));
+    }
+
+    private ImmutableArray<Probe> ReadProbes(
+        JsonElement analysis,
+        string analysisPath,
+        ImmutableArray<ComponentInstance> components,
+        ImmutableArray<Wire> wires)
+    {
+        if (!analysis.TryGetProperty(SchematicFields.Probes, out var element))
+        {
+            return [];
+        }
+
+        var path = JsonPath.Field(analysisPath, SchematicFields.Probes);
+
+        if (element.ValueKind != JsonValueKind.Array)
+        {
+            Warn(path, $"'{SchematicFields.Probes}' must be an array; dropped.");
+
+            return [];
+        }
+
+        var probes = ImmutableArray.CreateBuilder<Probe>();
+        var index = 0;
+
+        foreach (var entry in element.EnumerateArray())
+        {
+            var entryPath = JsonPath.Element(path, index);
+            index++;
+
+            if (ReadProbe(entry, entryPath, components, wires) is not { } probe)
+            {
+                continue;
+            }
+
+            if (probes.Contains(probe))
+            {
+                Warn(
+                    entryPath,
+                    $"the probe on {ProbeTargets.Describe(probe)} is listed more than once; "
+                    + "the repeat was dropped.");
+
+                continue;
+            }
+
+            if (probes.Count == AnalysisSettings.MaxProbes)
+            {
+                Warn(
+                    entryPath,
+                    $"a schematic holds at most {AnalysisSettings.MaxProbes} probes; this one "
+                    + "was dropped.");
+
+                continue;
+            }
+
+            probes.Add(probe);
+        }
+
+        return probes.ToImmutable();
+    }
+
+    private Probe? ReadProbe(
+        JsonElement element,
+        string path,
+        ImmutableArray<ComponentInstance> components,
+        ImmutableArray<Wire> wires)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            Warn(path, "a probe must be an object; dropped.");
+
+            return null;
+        }
+
+        WarnUnknownFields(element, path, SchematicFields.ProbeEntry);
+
+        var hasVoltage = element.TryGetProperty(SchematicFields.Voltage, out var voltage);
+        var hasCurrent = element.TryGetProperty(SchematicFields.Current, out var current);
+
+        if (hasVoltage == hasCurrent)
+        {
+            Warn(
+                path,
+                $"a probe must carry exactly one of '{SchematicFields.Voltage}' and "
+                + $"'{SchematicFields.Current}'; dropped.");
+
+            return null;
+        }
+
+        return hasVoltage
+            ? ReadVoltageProbe(
+                voltage, JsonPath.Field(path, SchematicFields.Voltage), components, wires)
+            : ReadCurrentProbe(
+                current, JsonPath.Field(path, SchematicFields.Current), components);
+    }
+
+    private Probe? ReadVoltageProbe(
+        JsonElement element,
+        string path,
+        ImmutableArray<ComponentInstance> components,
+        ImmutableArray<Wire> wires)
+    {
+        if (!RequireProbeTarget(element, path, SchematicFields.VoltageTarget))
+        {
+            return null;
+        }
+
+        var hasComponent = element.TryGetProperty(SchematicFields.ProbeComponent, out _);
+        var hasWire = element.TryGetProperty(SchematicFields.ProbeWire, out _);
+
+        if (hasComponent == hasWire)
+        {
+            Warn(
+                path,
+                $"a voltage probe must carry either '{SchematicFields.ProbeComponent}' with "
+                + $"'{SchematicFields.Pin}' or '{SchematicFields.ProbeWire}'; dropped.");
+
+            return null;
+        }
+
+        return hasWire
+            ? ReadWireVoltageProbe(element, path, wires)
+            : ReadPinVoltageProbe(element, path, components);
+    }
+
+    private Probe? ReadPinVoltageProbe(
+        JsonElement element, string path, ImmutableArray<ComponentInstance> components)
+    {
+        if (!TryReadProbeIdentifier(element, path, SchematicFields.ProbeComponent, out var id)
+            || !TryReadProbePinName(element, path, out var pinName))
+        {
+            return null;
+        }
+
+        var component = ComponentWithId(components, new ComponentId(id));
+
+        if (component is null)
+        {
+            Warn(path, $"no component carries the id {id}; the probe was dropped.");
+
+            return null;
+        }
+
+        if (!HasPin(component, pinName))
+        {
+            Warn(path, $"{component.Designator} has no pin '{pinName}'; the probe was dropped.");
+
+            return null;
+        }
+
+        return Probe.At(new PinRef(component.Id, pinName));
+    }
+
+    private Probe? ReadWireVoltageProbe(
+        JsonElement element, string path, ImmutableArray<Wire> wires)
+    {
+        if (!TryReadProbeIdentifier(element, path, SchematicFields.ProbeWire, out var id))
+        {
+            return null;
+        }
+
+        if (!wires.Any(wire => wire.Id.Value == id))
+        {
+            Warn(path, $"no wire carries the id {id}; the probe was dropped.");
+
+            return null;
+        }
+
+        return Probe.At(new WireId(id));
+    }
+
+    private Probe? ReadCurrentProbe(
+        JsonElement element, string path, ImmutableArray<ComponentInstance> components)
+    {
+        if (!RequireProbeTarget(element, path, SchematicFields.CurrentTarget)
+            || !TryReadProbeIdentifier(element, path, SchematicFields.ProbeComponent, out var id))
+        {
+            return null;
+        }
+
+        var component = ComponentWithId(components, new ComponentId(id));
+
+        if (component is null)
+        {
+            Warn(path, $"no component carries the id {id}; the probe was dropped.");
+
+            return null;
+        }
+
+        return Probe.Through(component.Id);
+    }
+
+    private bool RequireProbeTarget(JsonElement element, string path, string[] knownFields)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            Warn(path, "a probe target must be an object; the probe was dropped.");
+
+            return false;
+        }
+
+        WarnUnknownFields(element, path, knownFields);
+
+        return true;
+    }
+
+    private bool TryReadProbeIdentifier(
+        JsonElement owner, string ownerPath, string fieldName, out int value)
+    {
+        value = 0;
+
+        if (!owner.TryGetProperty(fieldName, out var element)
+            || element.ValueKind != JsonValueKind.Number
+            || !element.TryGetInt32(out var number)
+            || number < ComponentId.First.Value)
+        {
+            Warn(
+                ownerPath,
+                $"'{fieldName}' must be a positive whole number; the probe was dropped.");
+
+            return false;
+        }
+
+        value = number;
+
+        return true;
+    }
+
+    private bool TryReadProbePinName(JsonElement owner, string ownerPath, out string pinName)
+    {
+        pinName = string.Empty;
+
+        if (!owner.TryGetProperty(SchematicFields.Pin, out var element)
+            || element.ValueKind != JsonValueKind.String
+            || element.GetString() is not { Length: > 0 } text)
+        {
+            Warn(
+                ownerPath,
+                $"'{SchematicFields.Pin}' must be a pin name; the probe was dropped.");
+
+            return false;
+        }
+
+        pinName = text;
+
+        return true;
+    }
+
+    private static ComponentInstance? ComponentWithId(
+        ImmutableArray<ComponentInstance> components, ComponentId id) =>
+        components.FirstOrDefault(component => component.Id == id);
+
+    private bool HasPin(ComponentInstance component, string pinName) =>
+        _catalog.TryGetById(component.DefinitionId, out var definition)
+        && definition.Pins.Any(pin => string.Equals(pin.Name, pinName, StringComparison.Ordinal));
+
+    private TransientSettings? ReadTransientSettings(JsonElement analysis, string analysisPath)
+    {
+        if (!analysis.TryGetProperty(SchematicFields.Transient, out var element))
+        {
+            return null;
+        }
+
+        var path = JsonPath.Field(analysisPath, SchematicFields.Transient);
+
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            Warn(path, $"'{SchematicFields.Transient}' must be an object; dropped.");
+
+            return null;
+        }
+
+        WarnUnknownFields(element, path, SchematicFields.TransientAnalysis);
+
+        if (!TryReadSeconds(element, path, SchematicFields.StopTime, out var stopTime)
+            || stopTime is null
+            || !TryReadSeconds(element, path, SchematicFields.OutputStep, out var outputStep)
+            || !TryReadSeconds(element, path, SchematicFields.MaxStep, out var maxStep)
+            || !TryReadFlag(element, path, SchematicFields.StartFromZero, out var startFromZero))
+        {
+            return Dropped(path);
+        }
+
+        var settings = new TransientSettings(
+            stopTime.Value, outputStep, maxStep, startFromZero);
+
+        return settings.IsValid ? settings : Dropped(path);
+    }
+
+    private bool TryReadSeconds(
+        JsonElement owner, string ownerPath, string fieldName, out double? seconds)
+    {
+        seconds = null;
+
+        if (!owner.TryGetProperty(fieldName, out var element)
+            || element.ValueKind == JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        if (element.ValueKind != JsonValueKind.Number
+            || !element.TryGetDouble(out var value)
+            || !double.IsFinite(value))
+        {
+            Warn(
+                JsonPath.Field(ownerPath, fieldName),
+                $"'{fieldName}' must be a number of seconds.");
+
+            return false;
+        }
+
+        seconds = value;
+
+        return true;
+    }
+
+    private bool TryReadFlag(
+        JsonElement owner, string ownerPath, string fieldName, out bool flag)
+    {
+        flag = false;
+
+        if (!owner.TryGetProperty(fieldName, out var element)
+            || element.ValueKind == JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        if (element.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+        {
+            Warn(JsonPath.Field(ownerPath, fieldName), $"'{fieldName}' must be a boolean.");
+
+            return false;
+        }
+
+        flag = element.GetBoolean();
+
+        return true;
+    }
+
+    private TransientSettings? Dropped(string path)
+    {
+        Warn(path, "the transient analysis settings were dropped.");
+
+        return null;
     }
 
     private bool HasSupportedSchemaVersion(JsonElement root)
@@ -195,7 +570,7 @@ internal sealed class SchematicReader
             : null;
     }
 
-    private ImmutableSortedDictionary<string, Quantity> ReadParameters(
+    private ImmutableSortedDictionary<string, ParameterValue> ReadParameters(
         JsonElement element, string path, string definitionId, string? subject)
     {
         var parametersPath = JsonPath.Field(path, SchematicFields.Parameters);
@@ -230,7 +605,7 @@ internal sealed class SchematicReader
             subject);
     }
 
-    private ImmutableSortedDictionary<string, Quantity> ReadKnownParameters(
+    private ImmutableSortedDictionary<string, ParameterValue> ReadKnownParameters(
         JsonElement parameters,
         string parametersPath,
         ComponentDefinition definition,
@@ -273,7 +648,7 @@ internal sealed class SchematicReader
         return values;
     }
 
-    private ImmutableSortedDictionary<string, Quantity> DroppedParameters(
+    private ImmutableSortedDictionary<string, ParameterValue> DroppedParameters(
         JsonElement parameters, string parametersPath, string definitionId, string? subject)
     {
         foreach (var property in parameters.EnumerateObject())
@@ -288,8 +663,8 @@ internal sealed class SchematicReader
         return NoParameters;
     }
 
-    private ImmutableSortedDictionary<string, Quantity> WithMissingDefaults(
-        ImmutableSortedDictionary<string, Quantity> values,
+    private ImmutableSortedDictionary<string, ParameterValue> WithMissingDefaults(
+        ImmutableSortedDictionary<string, ParameterValue> values,
         ComponentDefinition definition,
         string parametersPath,
         string? subject)
@@ -313,9 +688,14 @@ internal sealed class SchematicReader
     }
 
     private static string? ParameterProblem(
-        JsonElement element, ParameterDefinition parameter, out Quantity value)
+        JsonElement element, ParameterDefinition parameter, out ParameterValue value)
     {
         value = default;
+
+        if (parameter.IsWaveform)
+        {
+            return WaveformProblem(element, parameter, out value);
+        }
 
         if (element.ValueKind != JsonValueKind.Number)
         {
@@ -327,22 +707,39 @@ internal sealed class SchematicReader
             return $"{parameter.Name} must be a finite number";
         }
 
-        value = new Quantity(number, parameter.Unit);
+        var quantity = new Quantity(number, parameter.Unit);
+
+        value = quantity;
 
         if (parameter.Minimum is { } minimum && number < minimum.Value)
         {
-            return $"{parameter.Name} {value} is below the minimum {minimum}";
+            return $"{parameter.Name} {quantity} is below the minimum {minimum}";
         }
 
         if (parameter.Maximum is { } maximum && number > maximum.Value)
         {
-            return $"{parameter.Name} {value} is above the maximum {maximum}";
+            return $"{parameter.Name} {quantity} is above the maximum {maximum}";
         }
 
         if (parameter.Series is { } series && !BelongsToSeries(series, number))
         {
-            return $"{parameter.Name} {value} is not in {series}";
+            return $"{parameter.Name} {quantity} is not in {series}";
         }
+
+        return null;
+    }
+
+    private static string? WaveformProblem(
+        JsonElement element, ParameterDefinition parameter, out ParameterValue value)
+    {
+        value = default;
+
+        if (!WaveformJson.TryRead(element, out var waveform, out var problem))
+        {
+            return $"{parameter.Name} {problem}";
+        }
+
+        value = ParameterValue.Of(waveform, parameter.Unit);
 
         return null;
     }

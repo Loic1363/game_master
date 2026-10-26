@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Godot;
+using Nodal.Circuit.Commands;
 using Nodal.Circuit.Connectivity;
 using Nodal.Circuit.Geometry;
 using Nodal.Circuit.Hit;
@@ -9,7 +10,7 @@ using Nodal.Content.Symbols;
 using Nodal.Editor;
 using Nodal.Editor.Simulation;
 using Nodal.Foundation.Geometry;
-using Nodal.Simulation.Dc;
+using Nodal.Game.Style;
 
 namespace Nodal.Game.Rendering;
 
@@ -17,11 +18,14 @@ public partial class SchematicCanvas : Control
 {
     private readonly CanvasCamera _camera = new();
 
+    private readonly Dictionary<ComponentId, Rect2> _valueLabels = [];
+
     private EditorSession? _session;
     private SymbolLibrary _symbols = SymbolLibrary.Empty;
     private ConnectivityResult? _connectivity;
-    private OperatingPoint? _operatingPoint;
     private ImmutableArray<NetVoltageLabel> _voltageLabels = [];
+    private SolutionSnapshot? _solution;
+    private InlineValueEdit? _inlineEdit;
     private Net? _hoveredNet;
     private ComponentId? _hoveredComponent;
     private Font? _font;
@@ -34,6 +38,10 @@ public partial class SchematicCanvas : Control
     public event Action<ComponentId?>? HoveredComponentChanged;
 
     public event Action? ViewChanged;
+
+    public event Action<IEditCommand>? ValueEdited;
+
+    public event Action<string?>? InlineErrorChanged;
 
     public bool ShowGrid { get; set; } = true;
 
@@ -61,7 +69,8 @@ public partial class SchematicCanvas : Control
         _hoveredComponent = null;
         _fitted = false;
 
-        ClearOperatingPoint();
+        ClearSolution();
+        CloseInlineEdit();
 
         FitToSchematic();
         QueueRedraw();
@@ -74,26 +83,27 @@ public partial class SchematicCanvas : Control
         _connectivity = connectivity;
         _hoveredNet = null;
 
+        CloseInlineEdit();
         RefreshPointer();
         QueueRedraw();
     }
 
-    public void ShowOperatingPoint(OperatingPoint operatingPoint)
+    public void ShowSolution(SolutionSnapshot solution)
     {
-        ArgumentNullException.ThrowIfNull(operatingPoint);
+        ArgumentNullException.ThrowIfNull(solution);
 
-        _operatingPoint = operatingPoint;
+        _solution = solution;
         _voltageLabels = _session is null || _connectivity is null
             ? []
             : OperatingPointOverlay.Labels(
-                _session.Schematic, _session.Catalog, _connectivity, operatingPoint);
+                _session.Schematic, _session.Catalog, _connectivity, solution);
 
         QueueRedraw();
     }
 
-    public void ClearOperatingPoint()
+    public void ClearSolution()
     {
-        _operatingPoint = null;
+        _solution = null;
         _voltageLabels = [];
 
         QueueRedraw();
@@ -245,7 +255,7 @@ public partial class SchematicCanvas : Control
         {
             _session.PrimaryPressed(_camera.ToGrid(button.Position));
 
-            if (button.DoubleClick)
+            if (button.DoubleClick && !TryEditValueAt(button.Position))
             {
                 _session.DoubleClicked();
             }
@@ -275,6 +285,7 @@ public partial class SchematicCanvas : Control
 
     private void AfterCameraChanged()
     {
+        CloseInlineEdit();
         RefreshPointer();
         QueueRedraw();
     }
@@ -434,7 +445,7 @@ public partial class SchematicCanvas : Control
     }
 
     private Color StrokeOf(ComponentId id) =>
-        _operatingPoint?.HasRatingWarning(id) == true ? VisualTokens.Error : VisualTokens.Stroke;
+        _solution?.HasRatingWarning(id) == true ? VisualTokens.Error : VisualTokens.Stroke;
 
     private void DrawWire(Wire wire, Color color) => DrawLine(
         _camera.ToScreen(wire.Start), _camera.ToScreen(wire.End), color, CanvasMetrics.StrokeWidth);
@@ -580,6 +591,8 @@ public partial class SchematicCanvas : Control
     {
         var fontSize = CanvasText.FontSize(_camera.Zoom);
 
+        _valueLabels.Clear();
+
         foreach (var component in session.Schematic.Components.Values)
         {
             if (!_symbols.TryGet(component.DefinitionId, SymbolStyle.Iec, out var symbol))
@@ -591,10 +604,15 @@ public partial class SchematicCanvas : Control
 
             DrawLabel(component.Position, layout.Designator, component.Designator, fontSize);
 
-            if (FirstValue(session, component) is { } value)
+            if (ValueTextOf(session, component) is not { } value)
             {
-                DrawLabel(component.Position, layout.Value, value, fontSize);
+                continue;
             }
+
+            _valueLabels[component.Id] = BoundsOf(
+                component.Position, layout.Value, value, fontSize);
+
+            DrawLabel(component.Position, layout.Value, value, fontSize);
         }
     }
 
@@ -608,24 +626,22 @@ public partial class SchematicCanvas : Control
             fontSize,
             VisualTokens.LabelText);
 
-    private static string? FirstValue(EditorSession session, ComponentInstance component)
+    private Rect2 BoundsOf(
+        GridPoint position, LabelAnchor anchor, string text, int fontSize)
     {
-        if (!session.Catalog.TryGetById(component.DefinitionId, out var definition))
-        {
-            return null;
-        }
+        var size = Font.GetStringSize(text, HorizontalAlignment.Left, -1, fontSize);
+        var screen = Screen(position, anchor.Position);
+        var left = anchor.Alignment == LabelAlignment.Centered
+            ? screen.X - (size.X / 2f)
+            : screen.X;
 
-        var required = definition.Parameters.FirstOrDefault(parameter => parameter.IsRequired);
-
-        if (required is null)
-        {
-            return null;
-        }
-
-        return component.Parameters.TryGetValue(required.Name, out var quantity)
-            ? quantity.ToString()
-            : null;
+        return new Rect2(new Vector2(left, screen.Y - (size.Y / 2f)), size);
     }
+
+    private static string? ValueTextOf(EditorSession session, ComponentInstance component) =>
+        session.Catalog.TryGetById(component.DefinitionId, out var definition)
+            ? InlineValueEditor.LabelTextOf(component, definition)
+            : null;
 
     private void DrawVoltageLabels()
     {
@@ -646,4 +662,121 @@ public partial class SchematicCanvas : Control
 
     private Vector2 Screen(GridPoint position, GridVector local) =>
         _camera.ToScreen(new GridVector(position.X + local.X, position.Y + local.Y));
+
+    private bool TryEditValueAt(Vector2 position)
+    {
+        if (_session is null || ValueLabelAt(position) is not { } id)
+        {
+            return false;
+        }
+
+        if (!_session.Schematic.TryGetComponent(id, out var component)
+            || !_session.Catalog.TryGetById(component.DefinitionId, out var definition)
+            || !InlineValueEditor.TryOpen(component, definition, out var editor))
+        {
+            return false;
+        }
+
+        OpenInlineEdit(editor, _valueLabels[id]);
+
+        return true;
+    }
+
+    private ComponentId? ValueLabelAt(Vector2 position)
+    {
+        foreach (var entry in _valueLabels)
+        {
+            if (entry.Value.HasPoint(position))
+            {
+                return entry.Key;
+            }
+        }
+
+        return null;
+    }
+
+    private void OpenInlineEdit(InlineValueEditor editor, Rect2 label)
+    {
+        CloseInlineEdit();
+
+        var edit = InlineEditStyle.Create();
+
+        edit.Text = editor.Text;
+
+        InlineEditStyle.Resize(edit, label, CanvasText.FontSize(_camera.Zoom));
+
+        edit.TextChanged += OnInlineTextChanged;
+        edit.TextSubmitted += OnInlineSubmitted;
+        edit.FocusExited += CloseInlineEdit;
+        edit.GuiInput += @event => OnInlineInput(edit, @event);
+
+        _inlineEdit = new InlineValueEdit(editor, edit);
+
+        AddChild(edit);
+        edit.GrabFocus();
+        edit.SelectAll();
+    }
+
+    private void OnInlineInput(LineEdit edit, InputEvent @event)
+    {
+        if (@event is InputEventKey { Pressed: true, Keycode: Key.Escape })
+        {
+            edit.AcceptEvent();
+            CloseInlineEdit();
+        }
+    }
+
+    private void OnInlineTextChanged(string text)
+    {
+        if (_inlineEdit is not { } inline)
+        {
+            return;
+        }
+
+        inline.Editor.Write(text);
+        InlineErrorChanged?.Invoke(inline.Editor.Error);
+    }
+
+    private void OnInlineSubmitted(string text)
+    {
+        if (_inlineEdit is not { } inline)
+        {
+            return;
+        }
+
+        inline.Editor.Write(text);
+
+        if (!inline.Editor.IsValid)
+        {
+            InlineErrorChanged?.Invoke(inline.Editor.Error);
+
+            return;
+        }
+
+        var command = inline.Editor.BuildCommand();
+
+        CloseInlineEdit();
+
+        if (command is not null)
+        {
+            ValueEdited?.Invoke(command);
+        }
+    }
+
+    private void CloseInlineEdit()
+    {
+        if (_inlineEdit is not { } inline)
+        {
+            return;
+        }
+
+        _inlineEdit = null;
+
+        RemoveChild(inline.Edit);
+        inline.Edit.QueueFree();
+
+        InlineErrorChanged?.Invoke(null);
+    }
+
+    private sealed record InlineValueEdit(InlineValueEditor Editor, LineEdit Edit);
 }

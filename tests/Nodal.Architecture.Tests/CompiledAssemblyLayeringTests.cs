@@ -10,6 +10,7 @@ public class CompiledAssemblyLayeringTests
     [InlineData(CoreLayers.Circuit)]
     [InlineData(CoreLayers.Simulation)]
     [InlineData(CoreLayers.Editor)]
+    [InlineData(CoreLayers.Cli)]
     public void CoreAssemblyReferencesNoGodotAssembly(string layerName)
     {
         var godotReferences = CoreAssemblies.ReferencedAssemblyNames(layerName)
@@ -25,6 +26,7 @@ public class CompiledAssemblyLayeringTests
     [InlineData(CoreLayers.Circuit)]
     [InlineData(CoreLayers.Simulation)]
     [InlineData(CoreLayers.Editor)]
+    [InlineData(CoreLayers.Cli)]
     public void CoreAssemblyReferencesOnlyAllowedNodalAssemblies(string layerName)
     {
         var allowed = CoreLayers.AllowedNodalDependenciesOf(layerName);

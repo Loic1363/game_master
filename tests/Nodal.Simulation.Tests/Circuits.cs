@@ -5,7 +5,10 @@ using Nodal.Circuit.Netlists;
 using Nodal.Circuit.Schematics;
 using Nodal.Content.Components;
 using Nodal.Foundation.Quantities;
+using Nodal.Foundation.Waveforms;
 using Nodal.Simulation.Dc;
+using Nodal.Simulation.Elaboration;
+using Nodal.Simulation.Transient;
 
 namespace Nodal.Simulation.Tests;
 
@@ -16,11 +19,14 @@ internal static class Circuits
     public const string Inductor = "inductor";
     public const string VoltageSource = "voltage-source";
     public const string CurrentSource = "current-source";
+    public const string Diode = "diode";
     public const string Ground = "ground";
 
     public static Orientation Upright => Orientation.Default;
 
     public static Orientation FirstPinUp => new(Rotation.R90, false);
+
+    public static Orientation FirstPinDown => new(Rotation.R270, false);
 
     public static Schematic Add(this Schematic schematic, string definitionId, int x, int y) =>
         schematic.Add(definitionId, x, y, Orientation.Default);
@@ -46,11 +52,48 @@ internal static class Circuits
             schematic);
     }
 
+    public static Schematic Function(
+        this Schematic schematic, string designator, Waveform waveform)
+    {
+        var component = ComponentOf(schematic, designator);
+        var definition = DefinitionOf(component);
+        var parameter = definition.Parameters.First(
+            candidate => candidate.Kind == ParameterKind.Waveform);
+
+        return Succeed(
+            new SetParameter(
+                component.Id, parameter.Name, ParameterValue.Of(waveform, parameter.Unit)),
+            schematic);
+    }
+
     public static Netlist Compile(this Schematic schematic) =>
         NetlistCompiler.Compile(schematic, BaseCatalog.Catalog);
 
+    public static ElaboratedCircuit Elaborate(this Schematic schematic) =>
+        Elaborator.Elaborate(schematic.Compile(), BaseCatalog.Catalog);
+
     public static OperatingPoint Solve(this Schematic schematic) =>
         DcAnalysis.Solve(schematic.Compile(), BaseCatalog.Catalog);
+
+    public static TransientResult Transient(
+        this Schematic schematic, TransientOptions options) =>
+        TransientAnalysis.Run(schematic.Compile(), BaseCatalog.Catalog, options);
+
+    public static TransientSeries Of(this TransientResult result, string designator)
+    {
+        var series = result.Components.Values.FirstOrDefault(
+            candidate => string.Equals(candidate.Designator, designator, StringComparison.Ordinal));
+
+        return series ?? throw new InvalidOperationException(
+            $"The result has no component {designator}.");
+    }
+
+    public static double AmperesAt(
+        this TransientResult result, string designator, double time) =>
+        result.CurrentAt(result.Of(designator).Id, time);
+
+    public static double VoltsAt(this TransientResult result, string designator, double time) =>
+        result.ComponentVoltageAt(result.Of(designator).Id, time);
 
     public static double Volts(this OperatingPoint operatingPoint, string netName)
     {

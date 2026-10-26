@@ -103,7 +103,7 @@ public class SchematicCreateTests
         designator,
         new GridPoint(x, 0),
         Orientation.Default,
-        ImmutableSortedDictionary.Create<string, Quantity>(StringComparer.Ordinal)
+        ImmutableSortedDictionary.Create<string, ParameterValue>(StringComparer.Ordinal)
             .Add("resistance", new Quantity(1000, Unit.Ohm)));
 
     private static Wire Segment(int id) =>

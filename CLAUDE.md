@@ -16,6 +16,8 @@
 8. Never install system-wide software.
 9. Keep reports concise, about one screen. Give details only for failures, deviations and open questions.
 10. Never create or edit ADRs on your own initiative. ADRs are dictated by the architect in specs, and you record them verbatim. If you had to make a significant choice the spec did not cover (architecture, dependencies, file formats, frameworks, interfaces between layers, simulation algorithms), report it under "Deviations" so the architect can record it.
+11. All visual styling lives in the style layer: the Godot theme and the style code in game/scripts/Style/ (color tokens, metrics, fonts, and helper functions that create or style controls). Presentation and rendering code never sets colors, fonts, sizes or theme overrides inline; it calls the style layer. Changing the look of the game must only require editing the style layer.
+12. For any task with several phases, maintain docs/reports/NNNN-progress.md (NNNN is the task number), updated at the end of each phase, stating the completed phases, the current test count and the next step, precise enough to resume from it and the spec alone after an interruption. Fold it into the final report and delete it at the end.
 
 ## Architecture
 Layers, bottom to top. A layer may only depend on layers below it.
