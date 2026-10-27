@@ -43,9 +43,60 @@ public static class Elaborator
         ImmutableArray<Primitive>.Builder primitives,
         List<string> nodes)
     {
-        var pins = ComponentModels.PinsOf(kind);
-        var plus = ComponentModels.NetOf(element, pins[0]);
-        var minus = ComponentModels.NetOf(element, pins[1]);
+        var pins = PinsOf(element, kind);
+
+        return ComponentModels.IsTransistor(kind)
+            ? Transistor(element, definition, kind, pins, primitives)
+            : TwoTerminal(element, definition, kind, pins, primitives, nodes);
+    }
+
+    private static ImmutableArray<ElaboratedPin> PinsOf(
+        NetlistElement element, ComponentKind kind) =>
+    [
+        .. ComponentModels.PinsOf(kind).Select(
+            name => new ElaboratedPin(name, ComponentModels.NetOf(element, name))),
+    ];
+
+    private static ElaboratedComponent Transistor(
+        NetlistElement element,
+        ComponentDefinition definition,
+        ComponentKind kind,
+        ImmutableArray<ElaboratedPin> pins,
+        ImmutableArray<Primitive>.Builder primitives)
+    {
+        var index = primitives.Count;
+
+        primitives.Add(new Primitive(
+            element.Id,
+            element.Designator,
+            ComponentModels.PrimitiveOf(kind),
+            PrimitiveRole.Principal,
+            [.. pins.Select(pin => pin.Net)],
+            0));
+
+        return new ElaboratedComponent(
+            element.Id,
+            element.Designator,
+            definition.Name,
+            kind,
+            pins[0].Net,
+            pins[1].Net,
+            pins,
+            [index],
+            [index],
+            RatingsOf(element));
+    }
+
+    private static ElaboratedComponent TwoTerminal(
+        NetlistElement element,
+        ComponentDefinition definition,
+        ComponentKind kind,
+        ImmutableArray<ElaboratedPin> pins,
+        ImmutableArray<Primitive>.Builder primitives,
+        List<string> nodes)
+    {
+        var plus = pins[0].Net;
+        var minus = pins[1].Net;
         var chain = Chain(element, definition, kind);
         var shunts = Shunts(element, kind);
         var internals = InternalNodes(element.Designator, chain.Count - 1);
@@ -81,9 +132,11 @@ public static class Elaborator
         return new ElaboratedComponent(
             element.Id,
             element.Designator,
+            definition.Name,
             kind,
             plus,
             minus,
+            pins,
             owned.ToImmutable(),
             terminals.ToImmutable(),
             RatingsOf(element));

@@ -13,6 +13,7 @@ internal sealed class TransientRecorder
     private readonly Dictionary<string, List<double>> _netVoltages = new(StringComparer.Ordinal);
     private readonly Dictionary<ComponentId, List<double>> _voltages = [];
     private readonly Dictionary<ComponentId, List<double>> _currents = [];
+    private readonly Dictionary<ComponentId, List<double>[]> _pinCurrents = [];
 
     public TransientRecorder(ElaboratedCircuit circuit, ImmutableArray<string> excludedNets)
     {
@@ -32,11 +33,16 @@ internal sealed class TransientRecorder
         {
             _voltages[component.Id] = [];
             _currents[component.Id] = [];
+            _pinCurrents[component.Id] =
+                [.. component.Pins.Select(_ => new List<double>())];
         }
     }
 
     public void Add(
-        double time, Func<string, double> nodeVoltage, Func<int, double> primitiveCurrent)
+        double time,
+        Func<string, double> nodeVoltage,
+        Func<int, double> primitiveCurrent,
+        Func<int, double[]> pinCurrents)
     {
         _times.Add(time);
 
@@ -50,7 +56,10 @@ internal sealed class TransientRecorder
             _voltages[component.Id].Add(
                 nodeVoltage(component.PlusNet) - nodeVoltage(component.MinusNet));
 
-            _currents[component.Id].Add(component.TerminalPrimitives.Sum(primitiveCurrent));
+            var current = component.TerminalPrimitives.Sum(primitiveCurrent);
+
+            _currents[component.Id].Add(current);
+            AddPinCurrents(component, current, pinCurrents);
         }
     }
 
@@ -70,6 +79,20 @@ internal sealed class TransientRecorder
             ComponentSeries(),
             diagnostics,
             statistics);
+
+    private void AddPinCurrents(
+        ElaboratedComponent component, double current, Func<int, double[]> pinCurrents)
+    {
+        var lists = _pinCurrents[component.Id];
+        var values = component.IsTransistor
+            ? pinCurrents(component.TerminalPrimitives[0])
+            : [current, -current];
+
+        for (var pin = 0; pin < lists.Length; pin++)
+        {
+            lists[pin].Add(values[pin]);
+        }
+    }
 
     private ImmutableSortedDictionary<string, ImmutableArray<double>> NetSeries()
     {
@@ -93,10 +116,19 @@ internal sealed class TransientRecorder
             components[component.Id] = new TransientSeries(
                 component.Id,
                 component.Designator,
+                component.Name,
+                component.Kind,
                 [.. _voltages[component.Id]],
-                [.. _currents[component.Id]]);
+                [.. _currents[component.Id]],
+                PinSeriesOf(component));
         }
 
         return components.ToImmutable();
     }
+
+    private ImmutableArray<PinSeries> PinSeriesOf(ElaboratedComponent component) =>
+    [
+        .. component.Pins.Select((pin, index) => new PinSeries(
+            pin.Name, pin.Net, [.. _pinCurrents[component.Id][index]])),
+    ];
 }

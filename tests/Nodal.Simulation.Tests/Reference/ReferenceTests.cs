@@ -10,6 +10,7 @@ public class ReferenceTests
     private const double RelativeTolerance = 1e-6;
     private const double VoltageTolerance = 1e-6;
     private const double CurrentTolerance = 1e-12;
+    private const double PowerTolerance = 1e-12;
 
     private static readonly DcOptions Tight = new()
     {
@@ -76,6 +77,62 @@ public class ReferenceTests
             .Order(StringComparer.Ordinal);
 
         Assert.Equal(expected.ElementCurrents.Keys.Order(StringComparer.Ordinal), solved);
+    }
+
+    [Theory]
+    [MemberData(nameof(Circuits))]
+    public void ThePowerBalanceHolds(string name)
+    {
+        var solution = Solve(name);
+        var components = solution.Components.Values;
+        var absorbed = components.Sum(component => component.Power.Value);
+        var scale = components.Max(component => Math.Abs(component.Power.Value));
+
+        Assert.True(
+            Math.Abs(absorbed) <= Math.Max(PowerTolerance, RelativeTolerance * scale),
+            $"{name} absorbs {absorbed:R} W in total, with a largest component power "
+            + $"of {scale:R} W.");
+    }
+
+    [Theory]
+    [MemberData(nameof(Circuits))]
+    public void ThePinCurrentsOfEveryMultiTerminalComponentSumToZero(string name)
+    {
+        foreach (var component in Solve(name).Components.Values)
+        {
+            if (component.Pins.Length == 0)
+            {
+                continue;
+            }
+
+            var sum = component.Pins.Sum(pin => pin.Current.Value);
+
+            Assert.True(
+                Math.Abs(sum) <= CurrentTolerance,
+                $"{name} component {component.Designator} has pin currents summing "
+                + $"to {sum:R} A.");
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(Circuits))]
+    public void ThePowerOfEveryMultiTerminalComponentIsTheSumOverItsPins(string name)
+    {
+        foreach (var component in Solve(name).Components.Values)
+        {
+            if (component.Pins.Length == 0)
+            {
+                continue;
+            }
+
+            var summed = component.Pins.Sum(pin => pin.Power.Value);
+
+            Assert.True(
+                Math.Abs(summed - component.Power.Value)
+                    <= Math.Max(PowerTolerance, RelativeTolerance * Math.Abs(summed)),
+                $"{name} component {component.Designator} reports {component.Power.Value:R} W "
+                + $"but its pins sum to {summed:R} W.");
+        }
     }
 
     [Theory]

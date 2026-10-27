@@ -4,11 +4,30 @@ namespace Nodal.Simulation.Spice;
 
 internal static class SpiceElements
 {
-    public static string Of(Primitive primitive) => Line(
-        NameOf(primitive), primitive.PlusNode, primitive.MinusNode, ValueOf(primitive));
+    public static string Of(Primitive primitive) => primitive.IsTransistor
+        ? Transistor(primitive)
+        : Line(
+            NameOf(primitive), primitive.PlusNode, primitive.MinusNode, ValueOf(primitive));
 
     public static string NameOf(Primitive primitive) => SpiceFormat.Name(
         primitive.Designator, TypeOf(primitive.Kind), SuffixOf(primitive.Role));
+
+    private static string Transistor(Primitive primitive)
+    {
+        var name = NameOf(primitive);
+        var drain = primitive.PlusNode;
+        var source = primitive.MinusNode;
+        var control = primitive.ControlNode;
+        var model = SpiceModels.NameOf(primitive.Kind);
+
+        if (primitive.IsBipolar)
+        {
+            return $"{name} {drain} {control} {source} {model}";
+        }
+
+        return $"{name} {drain} {control} {source} {source} {model} "
+            + $"W={SpiceFormat.ChannelWidth} L={SpiceFormat.ChannelLength}";
+    }
 
     private static char TypeOf(PrimitiveKind kind) => kind switch
     {
@@ -17,6 +36,8 @@ internal static class SpiceElements
         PrimitiveKind.Inductor => SpiceElementType.Inductor,
         PrimitiveKind.VoltageSource => SpiceElementType.VoltageSource,
         PrimitiveKind.CurrentSource => SpiceElementType.CurrentSource,
+        PrimitiveKind.Nmos or PrimitiveKind.Pmos => SpiceElementType.Mosfet,
+        PrimitiveKind.Npn or PrimitiveKind.Pnp => SpiceElementType.Bipolar,
         _ => SpiceElementType.Diode,
     };
 

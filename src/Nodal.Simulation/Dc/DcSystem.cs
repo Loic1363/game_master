@@ -8,6 +8,7 @@ internal static class DcSystem
     public static MnaStamps Build(
         MnaUnknowns unknowns,
         ImmutableArray<DcElement> elements,
+        NonlinearDevices devices,
         ImmutableArray<string> netsWithoutDcPath,
         DcOptions options,
         DcBias bias)
@@ -16,8 +17,10 @@ internal static class DcSystem
 
         for (var index = 0; index < elements.Length; index++)
         {
-            Stamp(stamps, unknowns, elements[index], unknowns.BranchOf(index), bias, index);
+            Stamp(stamps, unknowns, elements[index], unknowns.BranchOf(index), bias);
         }
+
+        devices.Stamp(stamps, bias.DeviceState);
 
         foreach (var name in netsWithoutDcPath)
         {
@@ -33,12 +36,7 @@ internal static class DcSystem
     }
 
     private static void Stamp(
-        MnaStamps stamps,
-        MnaUnknowns unknowns,
-        DcElement element,
-        int branch,
-        DcBias bias,
-        int index)
+        MnaStamps stamps, MnaUnknowns unknowns, DcElement element, int branch, DcBias bias)
     {
         var plus = unknowns.NodeOf(element.FirstNode);
         var minus = unknowns.NodeOf(element.SecondNode);
@@ -61,17 +59,6 @@ internal static class DcSystem
         if (element.SourceCurrent != 0)
         {
             stamps.Current(plus, minus, element.SourceCurrent * bias.SourceScale);
-        }
-
-        if (element.IsNonlinear)
-        {
-            var voltage = bias.JunctionVoltages[index];
-
-            stamps.Junction(
-                plus,
-                minus,
-                DiodeModel.Conductance(voltage),
-                DiodeModel.EquivalentCurrent(voltage));
         }
     }
 }

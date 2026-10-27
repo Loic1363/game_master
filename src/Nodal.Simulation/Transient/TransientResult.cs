@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Nodal.Circuit.Schematics;
 using Nodal.Foundation.Quantities;
+using Nodal.Simulation.Dc;
 using Nodal.Simulation.Diagnostics;
 
 namespace Nodal.Simulation.Transient;
@@ -77,6 +78,17 @@ public sealed class TransientResult
 
     public double CurrentAt(ComponentId id, double time) =>
         Components.TryGetValue(id, out var series) ? At(series.Currents, time) : 0;
+
+    public double CurrentAt(ComponentId id, string pinName, double time) =>
+        Components.TryGetValue(id, out var series) && series.TryGetPin(pinName, out var pin)
+            ? At(pin.Currents, time)
+            : 0;
+
+    public DeviceOperatingPoint? DeviceAt(ComponentId id, double time) =>
+        Components.TryGetValue(id, out var series) && series.IsTransistor
+            ? TransientDevices.Describe(
+                series, net => VoltageAt(net, time), pin => CurrentAt(id, pin, time))
+            : null;
 
     public double ComponentVoltageAt(ComponentId id, double time) =>
         Components.TryGetValue(id, out var series) ? At(series.Voltages, time) : 0;

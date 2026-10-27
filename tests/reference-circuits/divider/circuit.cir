@@ -2,6 +2,5 @@
 V1 N1 0 10
 R1 N1 N2 1000
 R2 N2 0 2200
-.model NODAL_D D(IS=1e-14 N=1)
 .options TNOM=27
 .end

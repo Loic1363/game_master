@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "kind": "schematic",
+  "createdWith": "Nodal 0.0.1",
+  "nextComponentId": 10,
+  "nextWireId": 7,
+  "components": [
+    {
+      "id": 1,
+      "definition": "voltage-source",
+      "designator": "V1",
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {
+        "voltage": 10
+      }
+    },
+    {
+      "id": 2,
+      "definition": "ground",
+      "designator": "GND1",
+      "x": 0,
+      "y": 2,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {}
+    },
+    {
+      "id": 3,
+      "definition": "resistor",
+      "designator": "R1",
+      "x": 12,
+      "y": 0,
+      "rotation": 90,
+      "mirrored": false,
+      "parameters": {
+        "resistance": 2200
+      }
+    },
+    {
+      "id": 4,
+      "definition": "npn",
+      "designator": "Q1",
+      "x": 12,
+      "y": 6,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {}
+    },
+    {
+      "id": 5,
+      "definition": "resistor",
+      "designator": "R2",
+      "x": 12,
+      "y": 12,
+      "rotation": 90,
+      "mirrored": false,
+      "parameters": {
+        "resistance": 1000
+      }
+    },
+    {
+      "id": 6,
+      "definition": "ground",
+      "designator": "GND2",
+      "x": 12,
+      "y": 14,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {}
+    },
+    {
+      "id": 7,
+      "definition": "resistor",
+      "designator": "R3",
+      "x": 6,
+      "y": 0,
+      "rotation": 90,
+      "mirrored": false,
+      "parameters": {
+        "resistance": 47000
+      }
+    },
+    {
+      "id": 8,
+      "definition": "resistor",
+      "designator": "R4",
+      "x": 6,
+      "y": 6,
+      "rotation": 90,
+      "mirrored": false,
+      "parameters": {
+        "resistance": 10000
+      }
+    },
+    {
+      "id": 9,
+      "definition": "ground",
+      "designator": "GND3",
+      "x": 6,
+      "y": 8,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": 1,
+      "from": [
+        0,
+        -2
+      ],
+      "to": [
+        12,
+        -2
+      ]
+    },
+    {
+      "id": 2,
+      "from": [
+        12,
+        2
+      ],
+      "to": [
+        12,
+        4
+      ]
+    },
+    {
+      "id": 3,
+      "from": [
+        12,
+        8
+      ],
+      "to": [
+        12,
+        10
+      ]
+    },
+    {
+      "id": 4,
+      "from": [
+        6,
+        2
+      ],
+      "to": [
+        6,
+        4
+      ]
+    },
+    {
+      "id": 5,
+      "from": [
+        6,
+        4
+      ],
+      "to": [
+        10,
+        4
+      ]
+    },
+    {
+      "id": 6,
+      "from": [
+        10,
+        4
+      ],
+      "to": [
+        10,
+        6
+      ]
+    }
+  ]
+}

@@ -36,7 +36,7 @@ internal sealed class TransientStepper
         _plan = TransientPlan.Resolve(options);
         _storage = TransientStorage.Of(circuit);
         _system = new TransientSystem(circuit, _storage, options);
-        _newton = new TransientNewton(circuit, _system, options);
+        _newton = new TransientNewton(_system, options);
         _breakpoints = TransientBreakpoints.Of(circuit, _plan);
         _recorder = new TransientRecorder(circuit, UndefinedNets(circuit, _system));
     }
@@ -67,7 +67,7 @@ internal sealed class TransientStepper
 
         var state = InitialState(start);
 
-        _recorder.Add(0, start.NodeVoltage, start.CurrentOf);
+        _recorder.Add(0, start.NodeVoltage, start.CurrentOf, start.PinCurrentsOf);
 
         var charge = new double[_storage.Count];
         var flow = new double[_storage.Count];
@@ -127,7 +127,7 @@ internal sealed class TransientStepper
 
                 across[element] = _system.VoltageAcross(index, solution);
                 through[element] = _system.CurrentOf(
-                    index, solution, target, integration, previous);
+                    index, solution, solve.DeviceState, target, integration, previous);
             }
 
             var candidateCharge = new double[_storage.Count];
@@ -168,9 +168,11 @@ internal sealed class TransientStepper
             _recorder.Add(
                 time,
                 net => _system.Unknowns.NodeVoltage(net, solution),
-                index => _system.CurrentOf(index, solution, target, integration, previous));
+                index => _system.CurrentOf(
+                    index, solution, solve.DeviceState, target, integration, previous),
+                index => _system.PinCurrentsOf(index, solve.DeviceState));
 
-            state = new TransientState(across, through, solve.JunctionVoltages);
+            state = new TransientState(across, through, solve.DeviceState);
 
             Report(time);
 
@@ -223,17 +225,7 @@ internal sealed class TransientStepper
             through[element] = start.CurrentOf(index);
         }
 
-        var junctions = new double[_circuit.Primitives.Length];
-
-        for (var index = 0; index < _circuit.Primitives.Length; index++)
-        {
-            if (_circuit.Primitives[index].Kind == PrimitiveKind.Diode)
-            {
-                junctions[index] = start.VoltageAcross(index);
-            }
-        }
-
-        return new TransientState(across, through, junctions);
+        return new TransientState(across, through, start.CopyDeviceState());
     }
 
     private void Measure(TransientState state, double[] charge, double[] flow)

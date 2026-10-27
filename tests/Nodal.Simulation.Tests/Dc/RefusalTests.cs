@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Nodal.Circuit.Geometry;
+using Nodal.Circuit.Netlists;
 using Nodal.Circuit.Schematics;
 using Nodal.Foundation.Quantities;
 using Nodal.Simulation.Dc;
@@ -59,38 +60,39 @@ public class RefusalTests
     }
 
     [Theory]
-    [InlineData("nmos", "M1", "N-channel MOSFET")]
-    [InlineData("pmos", "M1", "P-channel MOSFET")]
-    [InlineData("npn", "Q1", "NPN transistor")]
-    [InlineData("pnp", "Q1", "PNP transistor")]
-    public void EveryTransistorIsRefusedWithItsOwnDiagnostic(
-        string definitionId, string designator, string name)
+    [InlineData("nmos", "M1")]
+    [InlineData("pmos", "M1")]
+    [InlineData("npn", "Q1")]
+    [InlineData("pnp", "Q1")]
+    public void NoTransistorIsRefusedAsUnsupported(string definitionId, string designator)
     {
-        var schematic = Schematic.Empty
-            .Add(Circuits.Ground, 0, 0)
-            .Add(definitionId, 6, 0);
+        var solution = TransistorCircuits.BiasBox(definitionId).Solve();
 
-        var solution = schematic.Solve();
+        Assert.True(solution.IsSolved);
+        Assert.DoesNotContain(
+            SimulationDiagnosticCode.UnsupportedComponent,
+            solution.Diagnostics.Select(diagnostic => diagnostic.Code));
 
-        Assert.False(solution.IsSolved);
-        Assert.Contains(
-            $"{designator} ({name}) is not supported by the simulator yet.",
-            solution.Diagnostics.Select(diagnostic => diagnostic.Message));
+        Assert.NotNull(solution.Of(designator));
     }
 
     [Fact]
-    public void EachUnsupportedComponentGetsItsOwnDiagnostic()
+    public void EachComponentTheSimulatorDoesNotModelGetsItsOwnDiagnostic()
     {
-        var schematic = Schematic.Empty
-            .Add(Circuits.Ground, 0, 0)
-            .Add("nmos", 6, 0)
-            .Add("npn", 12, 0);
+        var solution = DcAnalysis.Solve(
+            UnmodelledComponents.Netlist(
+                UnmodelledComponents.Transformer, UnmodelledComponents.Relay),
+            UnmodelledComponents.Catalog);
 
-        var unsupported = schematic.Solve().Diagnostics
+        var unsupported = solution.Diagnostics
             .Where(diagnostic => diagnostic.Code == SimulationDiagnosticCode.UnsupportedComponent)
             .ToArray();
 
+        Assert.False(solution.IsSolved);
         Assert.Equal(2, unsupported.Length);
+        Assert.Contains(
+            "X1 (Transformer) is not supported by the simulator yet.",
+            unsupported.Select(diagnostic => diagnostic.Message));
     }
 
     [Fact]

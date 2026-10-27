@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "nodes": [
+    "0",
+    "N1",
+    "N2",
+    "N3",
+    "N4",
+    "N5",
+    "N6",
+    "N7"
+  ],
+  "components": [
+    {
+      "designator": "V1",
+      "elements": [
+        "V1"
+      ]
+    },
+    {
+      "designator": "M1",
+      "elements": [
+        "M1"
+      ]
+    },
+    {
+      "designator": "M2",
+      "elements": [
+        "M2"
+      ]
+    },
+    {
+      "designator": "M3",
+      "elements": [
+        "M3"
+      ]
+    },
+    {
+      "designator": "M4",
+      "elements": [
+        "M4"
+      ]
+    },
+    {
+      "designator": "M5",
+      "elements": [
+        "M5"
+      ]
+    },
+    {
+      "designator": "M6",
+      "elements": [
+        "M6"
+      ]
+    },
+    {
+      "designator": "R1",
+      "elements": [
+        "R1"
+      ]
+    },
+    {
+      "designator": "C1",
+      "elements": [
+        "C1"
+      ]
+    },
+    {
+      "designator": "R2",
+      "elements": [
+        "R2"
+      ]
+    },
+    {
+      "designator": "C2",
+      "elements": [
+        "C2"
+      ]
+    },
+    {
+      "designator": "R3",
+      "elements": [
+        "R3"
+      ]
+    },
+    {
+      "designator": "C3",
+      "elements": [
+        "C3"
+      ]
+    },
+    {
+      "designator": "I1",
+      "elements": [
+        "I1"
+      ]
+    }
+  ],
+  "transient": {
+    "stopTime": 2E-06,
+    "outputStep": 5E-09,
+    "maxStep": 2E-10,
+    "startFromZero": false
+  }
+}

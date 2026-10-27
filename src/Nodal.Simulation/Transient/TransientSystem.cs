@@ -20,12 +20,12 @@ internal sealed class TransientSystem
         _storage = storage;
         _options = options;
         Unknowns = new MnaUnknowns(circuit.Nodes, [.. circuit.Primitives.Select(NeedsBranch)]);
+        Devices = NonlinearDevices.Resolve(circuit.Primitives, Unknowns);
 
         _shuntedNodes = MnaPaths.NetsWithoutPathToGround(
             circuit.Nodes,
-            circuit.Primitives
-                .Where(Conducts)
-                .Select(primitive => (primitive.PlusNode, primitive.MinusNode)));
+            circuit.Primitives.Where(Conducts).SelectMany(
+                primitive => primitive.ConductionPaths));
 
         _storageByPrimitive = new int[circuit.Primitives.Length];
         Array.Fill(_storageByPrimitive, -1);
@@ -37,6 +37,8 @@ internal sealed class TransientSystem
     }
 
     public MnaUnknowns Unknowns { get; }
+
+    public NonlinearDevices Devices { get; }
 
     public ImmutableArray<string> ShuntedNodes => _shuntedNodes;
 
@@ -52,14 +54,16 @@ internal sealed class TransientSystem
         double time,
         TransientIntegration integration,
         TransientState previous,
-        double[] junctionVoltages)
+        double[] deviceState)
     {
         var stamps = new MnaStamps(Unknowns.Size);
 
         for (var index = 0; index < _circuit.Primitives.Length; index++)
         {
-            Stamp(stamps, index, time, integration, previous, junctionVoltages[index]);
+            Stamp(stamps, index, time, integration, previous);
         }
+
+        Devices.Stamp(stamps, deviceState);
 
         foreach (var node in _shuntedNodes)
         {
@@ -72,6 +76,7 @@ internal sealed class TransientSystem
     public double CurrentOf(
         int index,
         double[] solution,
+        double[] deviceState,
         double time,
         TransientIntegration integration,
         TransientState previous)
@@ -84,17 +89,25 @@ internal sealed class TransientSystem
         }
 
         var primitive = _circuit.Primitives[index];
+
+        if (primitive.IsNonlinear)
+        {
+            return Devices.PrincipalCurrentOf(index, deviceState);
+        }
+
         var across = VoltageAcross(index, solution);
 
         return primitive.Kind switch
         {
             PrimitiveKind.Resistor => across / primitive.Value,
             PrimitiveKind.Capacitor => CapacitorCurrent(index, across, integration, previous),
-            PrimitiveKind.Diode => DiodeModel.Current(across),
             PrimitiveKind.CurrentSource => -primitive.ValueAt(time),
             _ => 0,
         };
     }
+
+    public double[] PinCurrentsOf(int index, double[] deviceState) =>
+        Devices.PinCurrentsOf(index, deviceState);
 
     public double VoltageAcross(int index, double[] solution) =>
         Unknowns.NodeVoltage(_circuit.Primitives[index].PlusNode, solution)
@@ -122,8 +135,7 @@ internal sealed class TransientSystem
         int index,
         double time,
         TransientIntegration integration,
-        TransientState previous,
-        double junctionVoltage)
+        TransientState previous)
     {
         var primitive = _circuit.Primitives[index];
         var plus = Unknowns.NodeOf(primitive.PlusNode);
@@ -159,15 +171,6 @@ internal sealed class TransientSystem
 
             case PrimitiveKind.CurrentSource:
                 stamps.Current(plus, minus, primitive.ValueAt(time));
-
-                break;
-
-            case PrimitiveKind.Diode:
-                stamps.Junction(
-                    plus,
-                    minus,
-                    DiodeModel.Conductance(junctionVoltage),
-                    DiodeModel.EquivalentCurrent(junctionVoltage));
 
                 break;
         }

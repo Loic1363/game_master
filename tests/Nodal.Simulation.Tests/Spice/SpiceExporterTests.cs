@@ -75,13 +75,37 @@ public class SpiceExporterTests
     }
 
     [Fact]
-    public void TheDeckEndsWithTheModelTheOptionsAndTheEndLine()
+    public void TheDeckEndsWithTheModelsTheOptionsAndTheEndLine()
     {
         var lines = Lines(GoldenDeck.Build());
 
-        Assert.Equal(".model NODAL_D D(IS=1e-14 N=1)", lines[^3]);
+        Assert.Equal(".model NODAL_D D(IS=1e-14 N=1)", lines[^7]);
+        Assert.StartsWith(".model NODAL_NMOS NMOS(VTO=1 ", lines[^6], StringComparison.Ordinal);
+        Assert.StartsWith(".model NODAL_PMOS PMOS(VTO=-1 ", lines[^5], StringComparison.Ordinal);
+        Assert.StartsWith(".model NODAL_NPN NPN(", lines[^4], StringComparison.Ordinal);
+        Assert.StartsWith(".model NODAL_PNP PNP(", lines[^3], StringComparison.Ordinal);
         Assert.Equal(".options TNOM=27", lines[^2]);
         Assert.Equal(".end", lines[^1]);
+    }
+
+    [Fact]
+    public void ADeckDeclaresOnlyTheModelsItUses()
+    {
+        var schematic = Schematic.Empty
+            .Add(Circuits.VoltageSource, 0, 0)
+            .Add(Circuits.Ground, 0, 2)
+            .Add(Circuits.Nmos, 6, 6)
+            .Add(Circuits.Ground, 6, 8)
+            .Wire(0, -2, 6, -2)
+            .Wire(6, -2, 6, 4)
+            .Wire(4, 6, 4, -2)
+            .Set("V1", "voltage", 5);
+
+        var models = Lines(schematic)
+            .Where(line => line.StartsWith(".model", StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.StartsWith(".model NODAL_NMOS ", Assert.Single(models), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -121,7 +145,6 @@ public class SpiceExporterTests
                 $"* {NodalInfo.Name} {NodalInfo.Version} export",
                 "V1 N1 0 10",
                 "R1 N1 0 2200",
-                ".model NODAL_D D(IS=1e-14 N=1)",
                 ".options TNOM=27",
                 ".end",
             },
@@ -129,15 +152,14 @@ public class SpiceExporterTests
     }
 
     [Fact]
-    public void AnUnsupportedComponentRefusesTheExport()
+    public void AComponentTheSimulatorDoesNotModelRefusesTheExport()
     {
-        var schematic = Schematic.Empty
-            .Add(Circuits.Ground, 0, 0)
-            .Add("npn", 6, 0);
-
         Assert.False(
             SpiceExporter.TryExport(
-                schematic.Compile(), BaseCatalog.Catalog, out var deck, out var refusals));
+                UnmodelledComponents.Netlist(UnmodelledComponents.Transformer),
+                UnmodelledComponents.Catalog,
+                out var deck,
+                out var refusals));
 
         Assert.Empty(deck);
         Assert.Equal(
@@ -167,16 +189,12 @@ public class SpiceExporterTests
     [Fact]
     public void ARefusedExportThrowsFromTheSimpleEntryPoint()
     {
-        var schematic = Schematic.Empty
-            .Add(Circuits.Ground, 0, 0)
-            .Add("npn", 6, 0);
-
-        var netlist = schematic.Compile();
+        var netlist = UnmodelledComponents.Netlist(UnmodelledComponents.Transformer);
 
         var exception = Assert.Throws<InvalidOperationException>(
-            () => SpiceExporter.Export(netlist, BaseCatalog.Catalog));
+            () => SpiceExporter.Export(netlist, UnmodelledComponents.Catalog));
 
-        Assert.Contains("Q1", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("X1", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

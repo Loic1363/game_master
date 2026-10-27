@@ -4,6 +4,5 @@ R1 N1 N2 1
 C1 N2 C1_int1 1E-07
 RC1_esr C1_int1 C1_int2 2
 LC1_esl C1_int2 0 1E-06
-.model NODAL_D D(IS=1e-14 N=1)
 .options TNOM=27
 .end

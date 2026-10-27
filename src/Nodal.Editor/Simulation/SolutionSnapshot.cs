@@ -70,12 +70,17 @@ public sealed class SolutionSnapshot
             var voltage = result.ComponentVoltageAt(series.Id, time);
             var current = result.CurrentAt(series.Id, time);
 
+            var pins = PinsOf(result, series, time);
+
             components[series.Id] = new ComponentOperatingPoint(
                 series.Id,
                 series.Designator,
+                series.Name,
                 new Quantity(voltage, Unit.Volt),
                 new Quantity(current, Unit.Ampere),
-                new Quantity(voltage * current, Unit.Watt));
+                new Quantity(pins.Sum(pin => pin.Power.Value), Unit.Watt),
+                pins,
+                result.DeviceAt(series.Id, time));
         }
 
         return new SolutionSnapshot(
@@ -98,4 +103,13 @@ public sealed class SolutionSnapshot
     public bool TryGetComponent(
         ComponentId id, [NotNullWhen(true)] out ComponentOperatingPoint? component) =>
         _components.TryGetValue(id, out component);
+
+    private static ImmutableArray<PinOperatingPoint> PinsOf(
+        TransientResult result, TransientSeries series, double time) =>
+    [
+        .. series.Pins.Select(pin => new PinOperatingPoint(
+            pin.Name,
+            new Quantity(result.VoltageAt(pin.Net, time), Unit.Volt),
+            new Quantity(result.CurrentAt(series.Id, pin.Name, time), Unit.Ampere))),
+    ];
 }

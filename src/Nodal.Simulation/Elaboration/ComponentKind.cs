@@ -9,4 +9,8 @@ public enum ComponentKind
     CurrentSource,
     Diode,
     Ground,
+    Nmos,
+    Pmos,
+    Npn,
+    Pnp,
 }

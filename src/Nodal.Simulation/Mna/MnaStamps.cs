@@ -77,4 +77,28 @@ internal sealed class MnaStamps
         Conductance(plus, minus, conductance);
         Current(plus, minus, -current);
     }
+
+    public void Transconductance(
+        int from, int to, int plusControl, int minusControl, double transconductance)
+    {
+        if (from >= 0 && plusControl >= 0)
+        {
+            Matrix.Add(from, plusControl, transconductance);
+        }
+
+        if (from >= 0 && minusControl >= 0)
+        {
+            Matrix.Add(from, minusControl, -transconductance);
+        }
+
+        if (to >= 0 && plusControl >= 0)
+        {
+            Matrix.Add(to, plusControl, -transconductance);
+        }
+
+        if (to >= 0 && minusControl >= 0)
+        {
+            Matrix.Add(to, minusControl, transconductance);
+        }
+    }
 }

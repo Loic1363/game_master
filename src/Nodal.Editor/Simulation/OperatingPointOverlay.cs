@@ -71,6 +71,15 @@ public static class OperatingPointOverlay
             return null;
         }
 
+        if (component.Device is { } device)
+        {
+            return $"{component.Designator}{Named(component.Name)}: "
+                + DeviceRegionText.Of(device.Region)
+                + string.Concat(
+                    device.Quantities.Select(
+                        quantity => $", {quantity.Name} {DisplayValue.Text(quantity.Value)}"));
+        }
+
         return $"{component.Designator}: {DisplayValue.Magnitude(component.Voltage)}, "
             + $"{DisplayValue.Magnitude(component.Current)}, {Magnitude(component.Power)} "
             + (component.Absorbs ? AbsorbedText : DeliveredText);
@@ -167,6 +176,9 @@ public static class OperatingPointOverlay
     }
 
     private static GridVector Of(GridPoint point) => new(point.X, point.Y);
+
+    private static string Named(string name) =>
+        name.Length > 0 ? $" ({name})" : string.Empty;
 
     private static string Magnitude(Quantity quantity) =>
         new Quantity(Math.Abs(quantity.Value), quantity.Unit).ToString();

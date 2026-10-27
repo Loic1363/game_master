@@ -21,6 +21,10 @@ internal static class Circuits
     public const string CurrentSource = "current-source";
     public const string Diode = "diode";
     public const string Ground = "ground";
+    public const string Nmos = "nmos";
+    public const string Pmos = "pmos";
+    public const string Npn = "npn";
+    public const string Pnp = "pnp";
 
     public static Orientation Upright => Orientation.Default;
 

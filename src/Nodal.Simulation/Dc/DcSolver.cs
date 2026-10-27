@@ -17,13 +17,13 @@ internal static class DcSolver
         var elements = DcElements.Resolve(circuit);
         var undefined = MnaPaths.NetsWithoutPathToGround(
             circuit.Nodes,
-            elements
-                .Where(element => element.Conducts)
-                .Select(element => (element.FirstNode, element.SecondNode)));
+            elements.Where(element => element.Conducts).SelectMany(
+                element => element.ConductionPaths));
         var unknowns = new MnaUnknowns(
             circuit.Nodes, [.. elements.Select(element => element.Branch is not null)]);
-        var solver = new NewtonSolver(unknowns, elements, undefined, options);
-        var outcome = Run(solver, options, elements.Length);
+        var devices = NonlinearDevices.Resolve(circuit.Primitives, unknowns);
+        var solver = new NewtonSolver(unknowns, elements, devices, undefined, options);
+        var outcome = Run(solver, options);
 
         if (!outcome.Attempt.Converged)
         {
@@ -37,8 +37,10 @@ internal static class DcSolver
             circuit,
             elements,
             unknowns,
+            devices,
             undefined,
             outcome.Attempt.Solution,
+            outcome.Attempt.DeviceState,
             new DcConvergence(outcome.Strategy, outcome.TotalIterations));
 
         failure = null;
@@ -46,11 +48,11 @@ internal static class DcSolver
         return true;
     }
 
-    private static DcOutcome Run(NewtonSolver solver, DcOptions options, int elementCount)
+    private static DcOutcome Run(NewtonSolver solver, DcOptions options)
     {
         if (solver.HasNonlinearElements)
         {
-            return DcStrategies.Run(solver, options, elementCount);
+            return DcStrategies.Run(solver, options);
         }
 
         var direct = solver.SolveOnce();

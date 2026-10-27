@@ -11,6 +11,12 @@ internal static class ComponentModels
     public const string MinusPin = "minus";
     public const string AnodePin = "anode";
     public const string CathodePin = "cathode";
+    public const string DrainPin = "drain";
+    public const string GatePin = "gate";
+    public const string SourcePin = "source";
+    public const string CollectorPin = "collector";
+    public const string BasePin = "base";
+    public const string EmitterPin = "emitter";
 
     private static readonly Dictionary<string, ComponentKind> KindByDefinitionId =
         new(StringComparer.Ordinal)
@@ -22,6 +28,10 @@ internal static class ComponentModels
             ["current-source"] = ComponentKind.CurrentSource,
             ["diode"] = ComponentKind.Diode,
             ["ground"] = ComponentKind.Ground,
+            ["nmos"] = ComponentKind.Nmos,
+            ["pmos"] = ComponentKind.Pmos,
+            ["npn"] = ComponentKind.Npn,
+            ["pnp"] = ComponentKind.Pnp,
         };
 
     public static bool TryGetKind(string definitionId, out ComponentKind kind) =>
@@ -32,7 +42,21 @@ internal static class ComponentModels
         ComponentKind.VoltageSource or ComponentKind.CurrentSource => [PlusPin, MinusPin],
         ComponentKind.Diode => [AnodePin, CathodePin],
         ComponentKind.Ground => [],
+        ComponentKind.Nmos or ComponentKind.Pmos => [DrainPin, SourcePin, GatePin],
+        ComponentKind.Npn or ComponentKind.Pnp => [CollectorPin, EmitterPin, BasePin],
         _ => [FirstPassivePin, SecondPassivePin],
+    };
+
+    public static bool IsTransistor(ComponentKind kind) =>
+        kind is ComponentKind.Nmos or ComponentKind.Pmos
+            or ComponentKind.Npn or ComponentKind.Pnp;
+
+    public static PrimitiveKind PrimitiveOf(ComponentKind kind) => kind switch
+    {
+        ComponentKind.Nmos => PrimitiveKind.Nmos,
+        ComponentKind.Pmos => PrimitiveKind.Pmos,
+        ComponentKind.Npn => PrimitiveKind.Npn,
+        _ => PrimitiveKind.Pnp,
     };
 
     public static bool IsSupported(NetlistElement element, out ComponentKind kind) =>

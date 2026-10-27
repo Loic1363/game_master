@@ -7,21 +7,26 @@ namespace Nodal.Simulation.Dc;
 internal sealed class DcSolution
 {
     private readonly double[] _values;
+    private readonly double[] _deviceState;
 
     public DcSolution(
         ElaboratedCircuit circuit,
         ImmutableArray<DcElement> elements,
         MnaUnknowns unknowns,
+        NonlinearDevices devices,
         ImmutableArray<string> undefinedNodes,
         double[] values,
+        double[] deviceState,
         DcConvergence convergence)
     {
         Circuit = circuit;
         Elements = elements;
         Unknowns = unknowns;
+        Devices = devices;
         UndefinedNodes = undefinedNodes;
         Convergence = convergence;
         _values = values;
+        _deviceState = deviceState;
     }
 
     public ElaboratedCircuit Circuit { get; }
@@ -29,6 +34,8 @@ internal sealed class DcSolution
     public ImmutableArray<DcElement> Elements { get; }
 
     public MnaUnknowns Unknowns { get; }
+
+    public NonlinearDevices Devices { get; }
 
     public ImmutableArray<string> UndefinedNodes { get; }
 
@@ -48,16 +55,24 @@ internal sealed class DcSolution
     public double CurrentOf(int primitive)
     {
         var element = Elements[primitive];
-        var across = VoltageAcross(primitive);
 
         if (element.IsNonlinear)
         {
-            return DiodeModel.Current(across);
+            return Devices.PrincipalCurrentOf(primitive, _deviceState);
         }
 
+        var across = VoltageAcross(primitive);
         var branch = Unknowns.BranchOf(primitive);
 
         return (branch >= 0 ? _values[branch] : across * (element.Conductance ?? 0))
             - element.SourceCurrent;
     }
+
+    public double[] PinCurrentsOf(int primitive) =>
+        Devices.PinCurrentsOf(primitive, _deviceState);
+
+    public DeviceOperatingPoint? DeviceOf(int primitive) =>
+        Devices.DescribeOf(primitive, _deviceState);
+
+    public double[] CopyDeviceState() => (double[])_deviceState.Clone();
 }

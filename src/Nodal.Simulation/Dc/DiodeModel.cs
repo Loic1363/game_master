@@ -37,6 +37,6 @@ public static class DiodeModel
         JunctionLimiting.Limit(
             newVoltage, oldVoltage, EmissionVoltage, CriticalVoltage, out limited);
 
-    private static double Exponential(double voltage) =>
+    public static double Exponential(double voltage) =>
         Math.Exp(Math.Min(voltage / EmissionVoltage, MaximumExponent));
 }

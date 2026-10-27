@@ -21,8 +21,8 @@ internal static class DcElements
         primitive.Owner,
         primitive.Designator,
         primitive.Kind,
-        primitive.PlusNode,
-        primitive.MinusNode,
+        primitive.Nodes,
+        primitive.ConductionPaths,
         ConductanceOf(primitive),
         BranchOf(primitive),
         SourceCurrentOf(primitive));

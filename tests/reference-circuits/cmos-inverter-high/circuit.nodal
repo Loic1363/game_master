@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "kind": "schematic",
+  "createdWith": "Nodal 0.0.1",
+  "nextComponentId": 8,
+  "nextWireId": 7,
+  "components": [
+    {
+      "id": 1,
+      "definition": "voltage-source",
+      "designator": "V1",
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {
+        "voltage": 5
+      }
+    },
+    {
+      "id": 2,
+      "definition": "ground",
+      "designator": "GND1",
+      "x": 0,
+      "y": 2,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {}
+    },
+    {
+      "id": 3,
+      "definition": "pmos",
+      "designator": "M1",
+      "x": 6,
+      "y": 2,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {}
+    },
+    {
+      "id": 4,
+      "definition": "nmos",
+      "designator": "M2",
+      "x": 6,
+      "y": 8,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {}
+    },
+    {
+      "id": 5,
+      "definition": "ground",
+      "designator": "GND2",
+      "x": 6,
+      "y": 10,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {}
+    },
+    {
+      "id": 6,
+      "definition": "voltage-source",
+      "designator": "V2",
+      "x": 0,
+      "y": 12,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {
+        "voltage": 5
+      }
+    },
+    {
+      "id": 7,
+      "definition": "ground",
+      "designator": "GND3",
+      "x": 0,
+      "y": 14,
+      "rotation": 0,
+      "mirrored": false,
+      "parameters": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": 1,
+      "from": [
+        0,
+        -2
+      ],
+      "to": [
+        6,
+        -2
+      ]
+    },
+    {
+      "id": 2,
+      "from": [
+        6,
+        -2
+      ],
+      "to": [
+        6,
+        0
+      ]
+    },
+    {
+      "id": 3,
+      "from": [
+        6,
+        4
+      ],
+      "to": [
+        6,
+        6
+      ]
+    },
+    {
+      "id": 4,
+      "from": [
+        4,
+        2
+      ],
+      "to": [
+        4,
+        8
+      ]
+    },
+    {
+      "id": 5,
+      "from": [
+        0,
+        10
+      ],
+      "to": [
+        4,
+        10
+      ]
+    },
+    {
+      "id": 6,
+      "from": [
+        4,
+        10
+      ],
+      "to": [
+        4,
+        8
+      ]
+    }
+  ]
+}

@@ -108,12 +108,34 @@ public static class DcAnalysis
             - solution.NodeVoltage(component.MinusNet);
 
         var current = component.TerminalPrimitives.Sum(solution.CurrentOf);
+        var pins = PinsOf(solution, component, current);
 
         return new ComponentOperatingPoint(
             component.Id,
             component.Designator,
+            component.Name,
             new Quantity(across, Unit.Volt),
             new Quantity(current, Unit.Ampere),
-            new Quantity(across * current, Unit.Watt));
+            new Quantity(pins.Sum(pin => pin.Power.Value), Unit.Watt),
+            pins,
+            component.IsTransistor
+                ? solution.DeviceOf(component.TerminalPrimitives[0])
+                : null);
+    }
+
+    private static ImmutableArray<PinOperatingPoint> PinsOf(
+        DcSolution solution, ElaboratedComponent component, double current)
+    {
+        var currents = component.IsTransistor
+            ? solution.PinCurrentsOf(component.TerminalPrimitives[0])
+            : [current, -current];
+
+        return
+        [
+            .. component.Pins.Select((pin, index) => new PinOperatingPoint(
+                pin.Name,
+                new Quantity(solution.NodeVoltage(pin.Net), Unit.Volt),
+                new Quantity(currents[index], Unit.Ampere))),
+        ];
     }
 }

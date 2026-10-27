@@ -3,6 +3,5 @@ V1 N1 0 10
 L1 N1 L1_int 0.001
 RL1 L1_int N2 150
 R1 N2 0 100
-.model NODAL_D D(IS=1e-14 N=1)
 .options TNOM=27
 .end

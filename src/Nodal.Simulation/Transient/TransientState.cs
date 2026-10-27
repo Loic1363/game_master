@@ -2,16 +2,16 @@ namespace Nodal.Simulation.Transient;
 
 internal sealed class TransientState
 {
-    public TransientState(double[] across, double[] through, double[] junctionVoltages)
+    public TransientState(double[] across, double[] through, double[] deviceState)
     {
         Across = across;
         Through = through;
-        JunctionVoltages = junctionVoltages;
+        DeviceState = deviceState;
     }
 
     public double[] Across { get; }
 
     public double[] Through { get; }
 
-    public double[] JunctionVoltages { get; }
+    public double[] DeviceState { get; }
 }

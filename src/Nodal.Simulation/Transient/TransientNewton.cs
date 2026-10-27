@@ -1,6 +1,4 @@
-using System.Collections.Immutable;
 using Nodal.Simulation.Dc;
-using Nodal.Simulation.Elaboration;
 using Nodal.Simulation.LinearAlgebra;
 using Nodal.Simulation.Mna;
 
@@ -9,28 +7,25 @@ namespace Nodal.Simulation.Transient;
 internal sealed class TransientNewton
 {
     private readonly TransientSystem _system;
-    private readonly ImmutableArray<Primitive> _primitives;
+    private readonly NonlinearDevices _devices;
     private readonly TransientOptions _options;
-    private readonly bool _nonlinear;
 
-    public TransientNewton(
-        ElaboratedCircuit circuit, TransientSystem system, TransientOptions options)
+    public TransientNewton(TransientSystem system, TransientOptions options)
     {
         _system = system;
-        _primitives = circuit.Primitives;
+        _devices = system.Devices;
         _options = options;
-        _nonlinear = circuit.Primitives.Any(primitive => primitive.Kind == PrimitiveKind.Diode);
     }
 
     public TransientSolve Solve(
         double time, TransientIntegration integration, TransientState previous)
     {
-        var junctions = (double[])previous.JunctionVoltages.Clone();
+        var state = (double[])previous.DeviceState.Clone();
 
-        if (!_nonlinear)
+        if (!_devices.Any)
         {
-            return TrySolve(time, integration, previous, junctions, out var direct)
-                ? new TransientSolve(true, direct, junctions, 1)
+            return TrySolve(time, integration, previous, state, out var direct)
+                ? new TransientSolve(true, direct, state, 1)
                 : TransientSolve.Failed(1);
         }
 
@@ -38,22 +33,23 @@ internal sealed class TransientNewton
 
         for (var iteration = 1; iteration <= _options.MaxIterations; iteration++)
         {
-            if (!TrySolve(time, integration, previous, junctions, out var solution))
+            if (!TrySolve(time, integration, previous, state, out var solution))
             {
                 return TransientSolve.Failed(iteration);
             }
 
-            var limited = Limited(JunctionVoltagesOf(solution), junctions, out var limitedAny);
+            var limited = _devices.Limited(
+                _devices.Measure(solution), state, out var limitedAny);
 
             if (iterate.Length > 0
                 && !limitedAny
                 && NodesConverged(iterate, solution)
-                && CurrentsConverged(junctions, limited))
+                && CurrentsConverged(state, limited))
             {
                 return new TransientSolve(true, solution, limited, iteration);
             }
 
-            junctions = limited;
+            state = limited;
             iterate = solution;
         }
 
@@ -64,10 +60,10 @@ internal sealed class TransientNewton
         double time,
         TransientIntegration integration,
         TransientState previous,
-        double[] junctions,
+        double[] deviceState,
         out double[] solution)
     {
-        var stamps = _system.Build(time, integration, previous, junctions);
+        var stamps = _system.Build(time, integration, previous, deviceState);
 
         if (!LuDecomposition.TryFactor(stamps.Matrix, out var decomposition))
         {
@@ -88,41 +84,6 @@ internal sealed class TransientNewton
         return false;
     }
 
-    private double[] JunctionVoltagesOf(double[] solution)
-    {
-        var voltages = new double[_primitives.Length];
-
-        for (var index = 0; index < _primitives.Length; index++)
-        {
-            if (_primitives[index].Kind == PrimitiveKind.Diode)
-            {
-                voltages[index] = _system.VoltageAcross(index, solution);
-            }
-        }
-
-        return voltages;
-    }
-
-    private double[] Limited(double[] raw, double[] previous, out bool limitedAny)
-    {
-        var limited = new double[raw.Length];
-
-        limitedAny = false;
-
-        for (var index = 0; index < raw.Length; index++)
-        {
-            if (_primitives[index].Kind != PrimitiveKind.Diode)
-            {
-                continue;
-            }
-
-            limited[index] = DiodeModel.Limit(raw[index], previous[index], out var wasLimited);
-            limitedAny |= wasLimited;
-        }
-
-        return limited;
-    }
-
     private bool NodesConverged(double[] previous, double[] solution)
     {
         for (var node = 0; node < _system.Unknowns.NodeCount; node++)
@@ -139,18 +100,13 @@ internal sealed class TransientNewton
 
     private bool CurrentsConverged(double[] previous, double[] limited)
     {
-        for (var index = 0; index < _primitives.Length; index++)
-        {
-            if (_primitives[index].Kind != PrimitiveKind.Diode)
-            {
-                continue;
-            }
+        var before = _devices.Currents(previous);
+        var after = _devices.Currents(limited);
 
+        for (var index = 0; index < before.Length; index++)
+        {
             if (!MnaConvergence.Close(
-                    DiodeModel.Current(previous[index]),
-                    DiodeModel.Current(limited[index]),
-                    _options.RelTol,
-                    _options.AbsTol))
+                    before[index], after[index], _options.RelTol, _options.AbsTol))
             {
                 return false;
             }

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "nodes": [
+    "0",
+    "N1",
+    "N2",
+    "N3"
+  ],
+  "components": [
+    {
+      "designator": "V1",
+      "elements": [
+        "V1"
+      ]
+    },
+    {
+      "designator": "M1",
+      "elements": [
+        "M1"
+      ]
+    },
+    {
+      "designator": "M2",
+      "elements": [
+        "M2"
+      ]
+    },
+    {
+      "designator": "V2",
+      "elements": [
+        "V2"
+      ]
+    },
+    {
+      "designator": "C1",
+      "elements": [
+        "C1"
+      ]
+    }
+  ],
+  "transient": {
+    "stopTime": 1E-06,
+    "outputStep": 5E-09,
+    "maxStep": 2E-10,
+    "startFromZero": false
+  }
+}

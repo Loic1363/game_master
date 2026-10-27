@@ -2,6 +2,5 @@
 V1 N1 0 PULSE(0 5 0 1E-08 1E-08 2.5E-06 1E-05)
 R1 N1 N2 1000
 C1 N2 0 1E-07
-.model NODAL_D D(IS=1e-14 N=1)
 .options TNOM=27
 .end

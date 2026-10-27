@@ -101,7 +101,11 @@ public static class SpiceExporter
             Append(text, SpiceElements.Of(primitive));
         }
 
-        Append(text, SpiceFormat.ModelLine);
+        foreach (var model in SpiceModels.LinesFor(circuit))
+        {
+            Append(text, model);
+        }
+
         Append(text, SpiceFormat.OptionsLine);
         Append(text, SpiceFormat.EndLine);
 

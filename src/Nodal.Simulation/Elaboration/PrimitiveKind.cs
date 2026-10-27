@@ -8,4 +8,8 @@ public enum PrimitiveKind
     VoltageSource,
     CurrentSource,
     Diode,
+    Nmos,
+    Pmos,
+    Npn,
+    Pnp,
 }

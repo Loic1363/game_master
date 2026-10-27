@@ -16,6 +16,7 @@ $transientOptions = '.options reltol=1e-6 vntol=1e-12 abstol=1e-15 chgtol=1e-16 
 $relativeToRange = 1e-4
 $voltageFloor = 1e-6
 $currentFloor = 1e-9
+$pmosModelName = 'NODAL_PMOS'
 
 function Get-NgspicePath {
     if (-not $env:NGSPICE) {
@@ -46,10 +47,38 @@ function Get-CurrentAccessor([string]$name) {
         '^[Cc]$' { return "@$name[i]" }
         '^[Ll]$' { return "@$name[i]" }
         '^[Dd]$' { return "@$name[id]" }
-        '^[Ii]$' { return "@$name[c]" }
+        '^[Ii]$' { return "@$name[current]" }
         '^[Vv]$' { return "$name#branch" }
+        '^[Mm]$' { return "@$name[id]" }
+        '^[Qq]$' { return "@$name[ic]" }
         default { throw "Unknown element type in $name." }
     }
+}
+
+function Get-CurrentSign([string]$name, [string[]]$deck) {
+    if ($name.Substring(0, 1) -notmatch '^[Mm]$') {
+        return 1
+    }
+
+    $pattern = '^\s*' + [regex]::Escape($name) + '\s'
+
+    foreach ($line in $deck) {
+        if (($line -match $pattern) -and ($line -match $pmosModelName)) {
+            return -1
+        }
+    }
+
+    return 1
+}
+
+function Get-ComponentSigns($component, [string[]]$deck) {
+    $signs = New-Object System.Collections.Generic.List[int]
+
+    foreach ($element in $component.elements) {
+        $signs.Add((Get-CurrentSign $element $deck))
+    }
+
+    return $signs
 }
 
 function Get-NodeAccessors($probes) {
@@ -320,9 +349,11 @@ function Update-OperatingPoint(
 
     foreach ($component in $probes.components) {
         $total = 0.0
+        $signs = Get-ComponentSigns $component $deck
 
-        foreach ($element in $component.elements) {
-            $total = $total + (Get-Value $values (Get-CurrentAccessor $element))
+        for ($offset = 0; $offset -lt $component.elements.Count; $offset++) {
+            $total = $total + $signs[$offset] *
+                (Get-Value $values (Get-CurrentAccessor $component.elements[$offset]))
         }
 
         $elementCurrents.Add($component.designator, $total) | Out-Null
@@ -381,12 +412,13 @@ function Update-Transient(
 
     foreach ($component in $probes.components) {
         $total = New-Object System.Collections.Generic.List[double]
+        $signs = Get-ComponentSigns $component $deck
 
         for ($row = 0; $row -lt $columns.Times.Count; $row++) {
             $sum = 0.0
 
             for ($offset = 0; $offset -lt $component.elements.Count; $offset++) {
-                $sum = $sum + $columns.Series[$index + $offset][$row]
+                $sum = $sum + $signs[$offset] * $columns.Series[$index + $offset][$row]
             }
 
             $total.Add($sum)

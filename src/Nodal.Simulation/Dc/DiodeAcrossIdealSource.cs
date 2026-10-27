@@ -27,7 +27,7 @@ internal static class DiodeAcrossIdealSource
             var forward = source.Branch!.Voltage > 0 ? plus : minus;
             var reverse = source.Branch!.Voltage > 0 ? minus : plus;
 
-            foreach (var diode in elements.Where(candidate => candidate.IsNonlinear))
+            foreach (var diode in elements.Where(candidate => candidate.IsDiode))
             {
                 if (joined.Find(indexByNet[diode.FirstNode]) == forward
                     && joined.Find(indexByNet[diode.SecondNode]) == reverse)

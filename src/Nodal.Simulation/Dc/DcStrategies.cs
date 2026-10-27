@@ -8,10 +8,10 @@ internal static class DcStrategies
     private const double MinimumSourceStep = 1.0 / 1024;
     private const double FullScale = 1;
 
-    public static DcOutcome Run(NewtonSolver solver, DcOptions options, int elementCount)
+    public static DcOutcome Run(NewtonSolver solver, DcOptions options)
     {
         var total = 0;
-        var plain = solver.Iterate(new double[elementCount], 0, FullScale);
+        var plain = solver.Iterate(new double[solver.StateCount], 0, FullScale);
 
         total += plain.Iterations;
 
@@ -20,14 +20,14 @@ internal static class DcStrategies
             return new DcOutcome(plain, DcSolveStrategy.NewtonRaphson, total);
         }
 
-        var stepped = GminStepping(solver, options, elementCount, ref total);
+        var stepped = GminStepping(solver, options, ref total);
 
         if (stepped.Converged)
         {
             return new DcOutcome(stepped, DcSolveStrategy.GminStepping, total);
         }
 
-        var ramped = SourceStepping(solver, elementCount, ref total);
+        var ramped = SourceStepping(solver, ref total);
 
         return new DcOutcome(
             ramped,
@@ -36,23 +36,23 @@ internal static class DcStrategies
     }
 
     private static DcAttempt GminStepping(
-        NewtonSolver solver, DcOptions options, int elementCount, ref int total)
+        NewtonSolver solver, DcOptions options, ref int total)
     {
-        var junctions = new double[elementCount];
-        var reached = DcAttempt.Failed(junctions, 0);
+        var state = new double[solver.StateCount];
+        var reached = DcAttempt.Failed(state, 0);
 
         foreach (var level in GminLevels(options))
         {
-            var attempt = solver.Iterate(junctions, level, FullScale);
+            var attempt = solver.Iterate(state, level, FullScale);
 
             total += attempt.Iterations;
 
             if (!attempt.Converged)
             {
-                return DcAttempt.Failed(junctions, attempt.Iterations);
+                return DcAttempt.Failed(state, attempt.Iterations);
             }
 
-            junctions = attempt.JunctionVoltages;
+            state = attempt.DeviceState;
             reached = attempt;
         }
 
@@ -69,11 +69,10 @@ internal static class DcStrategies
         yield return 0;
     }
 
-    private static DcAttempt SourceStepping(
-        NewtonSolver solver, int elementCount, ref int total)
+    private static DcAttempt SourceStepping(NewtonSolver solver, ref int total)
     {
-        var junctions = new double[elementCount];
-        var reached = solver.Iterate(junctions, 0, 0);
+        var state = new double[solver.StateCount];
+        var reached = solver.Iterate(state, 0, 0);
 
         total += reached.Iterations;
 
@@ -82,7 +81,7 @@ internal static class DcStrategies
             return reached;
         }
 
-        junctions = reached.JunctionVoltages;
+        state = reached.DeviceState;
 
         var scale = 0.0;
         var step = InitialSourceStep;
@@ -90,14 +89,14 @@ internal static class DcStrategies
         while (scale < FullScale)
         {
             var next = Math.Min(FullScale, scale + step);
-            var attempt = solver.Iterate(junctions, 0, next);
+            var attempt = solver.Iterate(state, 0, next);
 
             total += attempt.Iterations;
 
             if (attempt.Converged)
             {
                 scale = next;
-                junctions = attempt.JunctionVoltages;
+                state = attempt.DeviceState;
                 reached = attempt;
 
                 continue;
@@ -107,7 +106,7 @@ internal static class DcStrategies
 
             if (step < MinimumSourceStep)
             {
-                return DcAttempt.Failed(junctions, attempt.Iterations);
+                return DcAttempt.Failed(state, attempt.Iterations);
             }
         }
 

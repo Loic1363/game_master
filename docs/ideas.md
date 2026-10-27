@@ -41,3 +41,9 @@ Ideas from the project lead, kept for future game design. Nothing here is a deci
 
 ## Boards and installations
 - PCB routing, layers and ground planes interest a minority; the schematic already plays the role of the board. A PCB layer could come much later, for players building full installations and racks (see ADR-0015 for export limits).
+
+## Polish backlog (from the project lead's tests)
+- Labels overlap: voltage pills cover designators and values (V1, 1 kΩ), and a source's function text collides with nearby ground labels. Labels need collision avoidance.
+- Leaving the probe tool (Escape) and hiding the waveform panel (View menu) are not discoverable; the panel needs a visible close button and the probe tool a clearer entry and exit.
+- The P shortcut for probes is not ideal; revisit shortcuts during the design overhaul.
+- Menus with icons.
