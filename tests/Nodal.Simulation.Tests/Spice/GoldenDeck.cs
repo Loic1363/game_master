@@ -1,4 +1,6 @@
 using Nodal.Circuit.Schematics;
+using Nodal.Foundation.Schedules;
+using Nodal.Simulation.Tests.Dc;
 
 namespace Nodal.Simulation.Tests.Spice;
 
@@ -27,6 +29,18 @@ internal static class GoldenDeck
         .Add(Circuits.Ground, 48, 2)
         .Add(Circuits.Pnp, 54, 0)
         .Add(Circuits.Ground, 54, 2)
+        .Add(ControlCircuits.Vcvs, 60, 0)
+        .Add(Circuits.Ground, 60, 2)
+        .Add(ControlCircuits.Vccs, 68, 0)
+        .Add(Circuits.Ground, 68, 2)
+        .Add(ControlCircuits.Cccs, 76, 0)
+        .Add(Circuits.Ground, 76, 2)
+        .Add(ControlCircuits.Ccvs, 84, 0)
+        .Add(Circuits.Ground, 84, 2)
+        .Add(ControlCircuits.Switch, 92, 0)
+        .Add(Circuits.Ground, 92, 2)
+        .Add(ControlCircuits.PushButton, 100, 0)
+        .Add(Circuits.Ground, 102, 2)
         .Wire(0, -2, 6, -2)
         .Wire(6, -2, 12, -2)
         .Wire(12, -2, 18, -2)
@@ -40,6 +54,34 @@ internal static class GoldenDeck
         .Wire(40, 0, 40, -2)
         .Wire(46, 0, 46, -2)
         .Wire(52, 0, 52, -2)
+        .Wire(54, -2, 58, -2)
+        .Wire(58, -2, 60, -2)
+        .Wire(60, -2, 66, -2)
+        .Wire(66, -2, 68, -2)
+        .Wire(68, -2, 74, -2)
+        .Wire(74, -2, 76, -2)
+        .Wire(76, -2, 82, -2)
+        .Wire(82, -2, 84, -2)
+        .Wire(84, -2, 90, -2)
+        .Wire(90, -2, 92, -2)
+        .Wire(92, -2, 98, -2)
+        .Wire(58, -1, 58, -2)
+        .Wire(58, 1, 58, 2)
+        .Wire(58, 2, 60, 2)
+        .Wire(66, -1, 66, -2)
+        .Wire(66, 1, 66, 2)
+        .Wire(66, 2, 68, 2)
+        .Wire(74, -1, 74, -2)
+        .Wire(74, 1, 74, 2)
+        .Wire(74, 2, 76, 2)
+        .Wire(82, -1, 82, -2)
+        .Wire(82, 1, 82, 2)
+        .Wire(82, 2, 84, 2)
+        .Wire(90, -1, 90, -2)
+        .Wire(90, 1, 90, 2)
+        .Wire(90, 2, 92, 2)
+        .Wire(98, 0, 98, -2)
+        .Wire(102, 0, 102, 2)
         .Set("V1", "voltage", 12)
         .Set("V1", "series-resistance", 10)
         .Set("R1", "resistance", 1000)
@@ -52,7 +94,24 @@ internal static class GoldenDeck
         .Set("L1", "series-resistance", 2)
         .Set("L1", "parallel-capacitance", 2e-12)
         .Set("I1", "current", 2e-3)
-        .Set("I1", "parallel-resistance", 2200);
+        .Set("I1", "parallel-resistance", 2200)
+        .Set("E1", "gain", 2)
+        .Set("G1", "transconductance", 5e-3)
+        .Set("F1", "gain", 3)
+        .Set("H1", "transresistance", 2000)
+        .Set("S1", "threshold", 1.5)
+        .Set("S1", "hysteresis", 0.5)
+        .Set("S1", "on-resistance", 2)
+        .Set("S1", "off-resistance", 2e9)
+        .Set("SW1", "on-resistance", 0.02)
+        .Presses("SW1", Presses());
+
+    private static PressSchedule Presses()
+    {
+        PressScheduleText.TryParse("1m to 3m", out var schedule, out _);
+
+        return schedule!;
+    }
 
     public static string GoldenText() =>
         File.ReadAllText(Path.Combine(RepositoryPaths.SpiceDirectory, FileName))

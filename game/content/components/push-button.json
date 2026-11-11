@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "id": "push-button",
+  "name": "Push button",
+  "description": "Two-terminal button that closes during the presses of its schedule and is open elsewhere.",
+  "category": "source",
+  "designatorPrefix": "SW",
+  "pins": [
+    { "name": "a", "x": -2, "y": 0 },
+    { "name": "b", "x": 2, "y": 0 }
+  ],
+  "parameters": [
+    { "name": "presses", "label": "Presses", "tier": "basic", "kind": "schedule", "unit": "second", "default": "released" },
+    { "name": "on-resistance", "label": "On resistance", "tier": "advanced", "unit": "ohm", "default": "10m", "min": "1m" },
+    { "name": "off-resistance", "label": "Off resistance", "tier": "advanced", "unit": "ohm", "default": "1G", "min": "1" }
+  ]
+}

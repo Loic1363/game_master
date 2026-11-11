@@ -15,6 +15,7 @@ public static class UnitSymbols
         [Unit.Second] = "s",
         [Unit.Hertz] = "Hz",
         [Unit.Watt] = "W",
+        [Unit.Siemens] = "S",
     };
 
     public static string Symbol(this Unit unit) =>

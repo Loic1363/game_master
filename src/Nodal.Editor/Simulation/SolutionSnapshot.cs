@@ -76,6 +76,7 @@ public sealed class SolutionSnapshot
                 series.Id,
                 series.Designator,
                 series.Name,
+                series.Kind,
                 new Quantity(voltage, Unit.Volt),
                 new Quantity(current, Unit.Ampere),
                 new Quantity(pins.Sum(pin => pin.Power.Value), Unit.Watt),

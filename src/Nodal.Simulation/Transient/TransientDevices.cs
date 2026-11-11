@@ -8,7 +8,9 @@ internal static class TransientDevices
     public static DeviceOperatingPoint? Describe(
         TransientSeries series,
         Func<string, double> nodeVoltage,
-        Func<string, double> pinCurrent) => series.Kind switch
+        Func<string, double> pinCurrent,
+        double across,
+        bool closed) => series.Kind switch
         {
             ComponentKind.Nmos or ComponentKind.Pmos => Mosfet(
                 series, nodeVoltage, pinCurrent, series.Kind == ComponentKind.Pmos),
@@ -16,8 +18,52 @@ internal static class TransientDevices
             ComponentKind.Npn or ComponentKind.Pnp => Bipolar(
                 series, nodeVoltage, pinCurrent, series.Kind == ComponentKind.Pnp),
 
+            ComponentKind.Vcvs or ComponentKind.Vccs
+                or ComponentKind.Cccs or ComponentKind.Ccvs =>
+                ControlledSource(series, nodeVoltage, pinCurrent, across),
+
+            ComponentKind.Switch => DeviceDescriptions.Switch(
+                closed,
+                ControlVoltage(series, nodeVoltage),
+                across,
+                pinCurrent(ComponentModels.PlusPin)),
+
+            ComponentKind.PushButton => DeviceDescriptions.PushButton(
+                closed, across, pinCurrent(ComponentModels.FirstContactPin)),
+
             _ => null,
         };
+
+    private static DeviceOperatingPoint? ControlledSource(
+        TransientSeries series,
+        Func<string, double> nodeVoltage,
+        Func<string, double> pinCurrent,
+        double across)
+    {
+        if (NetOf(series, ComponentModels.ControlPlusPin) is null)
+        {
+            return null;
+        }
+
+        var control = ComponentModels.IsCurrentControlled(series.Kind)
+            ? pinCurrent(ComponentModels.ControlPlusPin)
+            : ControlVoltage(series, nodeVoltage);
+
+        return DeviceDescriptions.ControlledSource(
+            series.Kind, control, across, -pinCurrent(ComponentModels.PlusPin));
+    }
+
+    private static double ControlVoltage(
+        TransientSeries series, Func<string, double> nodeVoltage)
+    {
+        if (NetOf(series, ComponentModels.ControlPlusPin) is not { } plus
+            || NetOf(series, ComponentModels.ControlMinusPin) is not { } minus)
+        {
+            return 0;
+        }
+
+        return nodeVoltage(plus) - nodeVoltage(minus);
+    }
 
     private static DeviceOperatingPoint? Mosfet(
         TransientSeries series,

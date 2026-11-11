@@ -17,6 +17,9 @@ $relativeToRange = 1e-4
 $voltageFloor = 1e-6
 $currentFloor = 1e-9
 $pmosModelName = 'NODAL_PMOS'
+$switchProbeStep = '1e-12'
+$switchProbeAgreement = 1e-9
+$switchProbeFloor = 1e-12
 
 function Get-NgspicePath {
     if (-not $env:NGSPICE) {
@@ -51,12 +54,23 @@ function Get-CurrentAccessor([string]$name) {
         '^[Vv]$' { return "$name#branch" }
         '^[Mm]$' { return "@$name[id]" }
         '^[Qq]$' { return "@$name[ic]" }
+        '^[Ee]$' { return "@$name[i]" }
+        '^[Gg]$' { return "@$name[i]" }
+        '^[Ff]$' { return "@$name[i]" }
+        '^[Hh]$' { return "@$name[i]" }
+        '^[Ss]$' { return "@$name[i]" }
         default { throw "Unknown element type in $name." }
     }
 }
 
 function Get-CurrentSign([string]$name, [string[]]$deck) {
-    if ($name.Substring(0, 1) -notmatch '^[Mm]$') {
+    $type = $name.Substring(0, 1)
+
+    if ($type -match '^[GgFf]$') {
+        return -1
+    }
+
+    if ($type -notmatch '^[Mm]$') {
         return 1
     }
 
@@ -158,7 +172,8 @@ function New-TransientDeck([string[]]$deck, [string[]]$accessors, $transient, [s
 }
 
 function Invoke-Ngspice([string]$ngspice, [string]$deckPath) {
-    $output = & $ngspice -b $deckPath 2>&1
+    $ErrorActionPreference = 'Continue'
+    $output = @(& $ngspice -b $deckPath 2>&1 | ForEach-Object { $_.ToString() })
     $text = $output -join "`n"
 
     if ($text -match '(?im)^\s*(error|fatal)') {
@@ -166,6 +181,16 @@ function Invoke-Ngspice([string]$ngspice, [string]$deckPath) {
     }
 
     return $output
+}
+
+function Test-PseudoTransientOperatingPoint([string[]]$output) {
+    foreach ($line in $output) {
+        if ($line -match 'Transient op') {
+            return $true
+        }
+    }
+
+    return $false
 }
 
 function Read-PrintedValues([string[]]$output) {
@@ -315,6 +340,85 @@ function Write-ExpectedTransientJson(
     [IO.File]::WriteAllText($path, ($lines -join "`n") + "`n")
 }
 
+function Get-SwitchElements($probes) {
+    $names = New-Object System.Collections.Generic.List[string]
+
+    foreach ($component in $probes.components) {
+        foreach ($element in $component.elements) {
+            if ($element.Substring(0, 1) -match '^[Ss]$') {
+                $names.Add($element)
+            }
+        }
+    }
+
+    return $names
+}
+
+function Get-ProbeVariable([string]$accessor) {
+    return ('nodal_' + ($accessor -replace '[^A-Za-z0-9]', '_')).ToLowerInvariant()
+}
+
+function New-SwitchCurrentDeck(
+    [string[]]$deck,
+    [string[]]$switchAccessors,
+    [string[]]$nodeAccessors) {
+
+    $lines = New-Object System.Collections.Generic.List[string]
+    $lines.AddRange([string[]](Get-DeckBody $deck))
+
+    $saved = @($switchAccessors + $nodeAccessors) -join ' '
+
+    $lines.Add($transientOptions)
+    $lines.Add('.control')
+    $lines.Add('set numdgt=12')
+    $lines.Add("save $saved")
+    $lines.Add("tran $switchProbeStep $switchProbeStep")
+
+    foreach ($accessor in @($switchAccessors + $nodeAccessors)) {
+        $variable = Get-ProbeVariable $accessor
+        $lines.Add("let $variable = $accessor[0]")
+        $lines.Add("print $variable")
+    }
+
+    $lines.Add('.endc')
+    $lines.Add('.end')
+
+    return $lines
+}
+
+function Add-SwitchCurrents(
+    [string]$ngspice,
+    [string[]]$deck,
+    [string[]]$elements,
+    [string[]]$nodeAccessors,
+    [hashtable]$values,
+    [string]$scratch,
+    [string]$name) {
+
+    $switchAccessors = @($elements | ForEach-Object { Get-CurrentAccessor $_ })
+    $runDeck = New-SwitchCurrentDeck $deck $switchAccessors $nodeAccessors
+    $runPath = Join-Path $scratch ($name + '-switch.cir')
+    [IO.File]::WriteAllText($runPath, ($runDeck -join "`n") + "`n")
+
+    $measured = Read-PrintedValues (Invoke-Ngspice $ngspice $runPath)
+
+    foreach ($accessor in $nodeAccessors) {
+        $settled = Get-Value $measured (Get-ProbeVariable $accessor)
+        $expected = Get-Value $values $accessor
+        $allowed = [Math]::Max(
+            $switchProbeFloor, $switchProbeAgreement * [Math]::Abs($expected))
+
+        if ([Math]::Abs($settled - $expected) -gt $allowed) {
+            throw "The switch current run of $name started from another operating point: " +
+                "$accessor is $expected in op and $settled at t = 0."
+        }
+    }
+
+    foreach ($accessor in $switchAccessors) {
+        $values[$accessor.ToLowerInvariant()] =
+            Get-Value $measured (Get-ProbeVariable $accessor)
+    }
+}
 function Update-OperatingPoint(
     [string]$ngspice,
     [string]$version,
@@ -331,7 +435,27 @@ function Update-OperatingPoint(
     $runPath = Join-Path $scratch ($name + '-op.cir')
     [IO.File]::WriteAllText($runPath, ($runDeck -join "`n") + "`n")
 
-    $values = Read-PrintedValues (Invoke-Ngspice $ngspice $runPath)
+    $output = Invoke-Ngspice $ngspice $runPath
+    $expectationPath = Join-Path $folder 'expected.json'
+
+    if (Test-PseudoTransientOperatingPoint $output) {
+        if (Test-Path $expectationPath) {
+            throw "ngspice found no operating point for $name and fell back to a " +
+                "pseudo-transient, so $expectationPath cannot be trusted."
+        }
+
+        Write-Host "$name has no operating point, so only its transient is a reference."
+
+        return
+    }
+
+    $values = Read-PrintedValues $output
+    $switches = @(Get-SwitchElements $probes)
+
+    if ($switches.Count -gt 0) {
+        Add-SwitchCurrents `
+            $ngspice $deck $switches $nodeAccessors $values $scratch $name
+    }
 
     $nodeVoltages = New-Object System.Collections.Specialized.OrderedDictionary
 
@@ -359,7 +483,7 @@ function Update-OperatingPoint(
         $elementCurrents.Add($component.designator, $total) | Out-Null
     }
 
-    Write-ExpectedJson (Join-Path $folder 'expected.json') $version $nodeVoltages $elementCurrents
+    Write-ExpectedJson $expectationPath $version $nodeVoltages $elementCurrents
 }
 
 function Update-Transient(
@@ -475,12 +599,22 @@ try {
 
         Update-OperatingPoint $ngspice $version $folder.FullName $deck $probes $scratch $folder.Name
 
+        $updated = New-Object System.Collections.Generic.List[string]
+
+        if (Test-Path (Join-Path $folder.FullName 'expected.json')) {
+            $updated.Add('operating point')
+        }
+
         if ($probes.PSObject.Properties.Name -contains 'transient') {
             Update-Transient $ngspice $version $folder.FullName $deck $probes $scratch $folder.Name
-            Write-Host "Updated $($folder.Name) (operating point and transient)"
-        } else {
-            Write-Host "Updated $($folder.Name) (operating point)"
+            $updated.Add('transient')
         }
+
+        if ($updated.Count -eq 0) {
+            throw "$($folder.Name) carries no reference to update."
+        }
+
+        Write-Host "Updated $($folder.Name) ($($updated -join ' and '))"
     }
 } finally {
     Remove-Item -Recurse -Force $scratch -ErrorAction SilentlyContinue

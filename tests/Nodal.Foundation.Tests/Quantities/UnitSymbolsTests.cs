@@ -15,6 +15,7 @@ public class UnitSymbolsTests
     [InlineData(Unit.Second, "s")]
     [InlineData(Unit.Hertz, "Hz")]
     [InlineData(Unit.Watt, "W")]
+    [InlineData(Unit.Siemens, "S")]
     public void UnitKnowsItsSymbol(Unit unit, string expectedSymbol)
     {
         Assert.Equal(expectedSymbol, unit.Symbol());

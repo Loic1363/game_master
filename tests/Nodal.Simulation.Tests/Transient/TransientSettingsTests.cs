@@ -41,6 +41,25 @@ public class TransientSettingsTests
             () => TransientOptions.From(new TransientSettings(0)));
 
     [Fact]
+    public void UnsetStepsAreBounded() => Assert.True(new TransientSettings(1).IsValid);
+
+    [Fact]
+    public void AMillionOutputPointsAreAllowed() =>
+        Assert.True(new TransientSettings(1, 1e-6).IsValid);
+
+    [Fact]
+    public void MoreThanAMillionOutputPointsAreInvalid() =>
+        Assert.False(new TransientSettings(1, 1e-7).IsValid);
+
+    [Fact]
+    public void AMaxStepOfABillionthOfTheStopTimeIsAllowed() =>
+        Assert.True(new TransientSettings(1, null, 1e-9).IsValid);
+
+    [Fact]
+    public void ASmallerMaxStepThanABillionthOfTheStopTimeIsInvalid() =>
+        Assert.False(new TransientSettings(1, null, 1e-10).IsValid);
+
+    [Fact]
     public void AnalysisSettingsFromTheFileDriveTheRun()
     {
         var settings = new TransientSettings(1e-3, null, 1e-6, true);

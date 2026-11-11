@@ -7,6 +7,14 @@ public static class SchematicFile
 {
     public const string Extension = ".nodal";
 
+    public const long MaxFileBytes = SchematicLimits.MaxFileBytes;
+
+    public static string? FileSizeProblem(long lengthInBytes) =>
+        lengthInBytes > MaxFileBytes
+            ? $"The file is too large to open: {SchematicLimits.MegabytesText(lengthInBytes)} MB, "
+                + $"while the limit is {SchematicLimits.MaxFileMegabytesText} MB."
+            : null;
+
     public static string Write(Schematic schematic)
     {
         ArgumentNullException.ThrowIfNull(schematic);

@@ -66,6 +66,12 @@ internal static class DcSolver
         bool nonlinear,
         DcOutcome outcome)
     {
+        if (outcome.Attempt.UnstableSwitch is { } unstable)
+        {
+            return SimulationDiagnostic.SwitchKeepsChangingState(
+                unstable.Id, unstable.Designator);
+        }
+
         if (nonlinear && DiodeAcrossIdealSource.Find(circuit.Nodes, elements) is { } unbounded)
         {
             return unbounded;
@@ -77,6 +83,8 @@ internal static class DcSolver
         {
             return SimulationDiagnostic.NonConvergence(outcome.TotalIterations);
         }
+
+        cause ??= ControlledFeedback.Find(circuit.Nodes, elements);
 
         return SimulationDiagnostic.Singular(
             cause?.Description, cause?.Components ?? [], cause?.Nets ?? []);

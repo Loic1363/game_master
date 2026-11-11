@@ -4,6 +4,7 @@ using Nodal.Circuit.Geometry;
 using Nodal.Circuit.Schematics;
 using Nodal.Content.Components;
 using Nodal.Foundation.Quantities;
+using Nodal.Foundation.Schedules;
 using Xunit;
 
 namespace Nodal.Editor.Tests;
@@ -404,6 +405,57 @@ public class ParameterFormTests
         var other = Form("capacitor");
 
         Assert.Throws<ArgumentException>(() => form.Write(FieldOf(other, "esr"), "1"));
+    }
+
+    [Fact]
+    public void AScheduleFieldStartsOnItsText()
+    {
+        var field = FieldOf(Form("push-button"), "presses");
+
+        Assert.True(field.IsSchedule);
+        Assert.Equal("released", field.Text);
+        Assert.Equal(ParameterValue.Of(PressSchedule.Released, Unit.Second), field.Value);
+        Assert.Null(field.Error);
+        Assert.False(field.IsSteppable);
+    }
+
+    [Fact]
+    public void AScheduleFieldAcceptsPresses()
+    {
+        var form = Form("push-button");
+        var field = FieldOf(form, "presses");
+
+        form.Write(field, "1m to 3m");
+
+        Assert.Null(field.Error);
+        Assert.True(field.HasChanged);
+        Assert.Equal(
+            [new PressInterval(1e-3, 3e-3)], field.Value!.Value.Schedule.Presses);
+    }
+
+    [Fact]
+    public void AScheduleFieldReportsWhatIsWrongWithItsText()
+    {
+        var form = Form("push-button");
+        var field = FieldOf(form, "presses");
+
+        form.Write(field, "3m to 1m");
+
+        Assert.Equal("Each press must end after it starts: 3m to 1m.", field.Error);
+        Assert.Null(field.Value);
+        Assert.False(field.IsValid);
+    }
+
+    [Fact]
+    public void AnEditedScheduleBecomesACommand()
+    {
+        var form = Form("push-button");
+
+        form.Write(FieldOf(form, "presses"), "pressed");
+
+        Assert.NotNull(form.BuildCommand());
+        Assert.True(form.IsValid);
+        Assert.True(form.HasChanges);
     }
 
     private static ParameterForm Form(string definitionId) =>

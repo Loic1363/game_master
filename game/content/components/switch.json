@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "id": "switch",
+  "name": "Voltage-controlled switch",
+  "description": "Switch whose contacts close above a control threshold and open below it, with optional hysteresis.",
+  "category": "source",
+  "designatorPrefix": "S",
+  "pins": [
+    { "name": "plus", "x": 0, "y": -2 },
+    { "name": "minus", "x": 0, "y": 2 },
+    { "name": "control-plus", "x": -2, "y": -1 },
+    { "name": "control-minus", "x": -2, "y": 1 }
+  ],
+  "parameters": [
+    { "name": "threshold", "label": "Threshold", "tier": "basic", "unit": "volt", "default": "2.5" },
+    { "name": "hysteresis", "label": "Hysteresis", "tier": "advanced", "unit": "volt", "default": "0", "min": "0" },
+    { "name": "on-resistance", "label": "On resistance", "tier": "advanced", "unit": "ohm", "default": "1", "min": "1m" },
+    { "name": "off-resistance", "label": "Off resistance", "tier": "advanced", "unit": "ohm", "default": "1G", "min": "1" }
+  ]
+}

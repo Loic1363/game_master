@@ -7,7 +7,7 @@ public sealed record ParameterDefinition(
     string Label,
     ParameterTier Tier,
     Unit Unit,
-    Quantity? Default,
+    ParameterValue? Default,
     Quantity? Minimum,
     Quantity? Maximum,
     StandardSeries? Series,
@@ -16,4 +16,9 @@ public sealed record ParameterDefinition(
     public bool IsRequired => Default is not null;
 
     public bool IsWaveform => Kind == ParameterKind.Waveform;
+
+    public bool IsSchedule => Kind == ParameterKind.Schedule;
+
+    public Quantity? DefaultQuantity =>
+        Default is { IsQuantity: true } value ? value.Quantity : null;
 }

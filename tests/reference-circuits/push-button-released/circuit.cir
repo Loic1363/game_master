@@ -1,0 +1,8 @@
+* Nodal 0.0.1 export
+V1 N1 0 5
+SW1 N1 N2 SW1_ctrl 0 NODAL_SW_SW1
+VSW1_ctrl SW1_ctrl 0 PWL(0 0)
+R1 N2 0 1000
+.model NODAL_SW_SW1 SW(VT=0.5 VH=0 RON=0.01 ROFF=1000000000)
+.options TNOM=27
+.end

@@ -14,7 +14,8 @@ public sealed class TransientSeries
         ComponentKind kind,
         ImmutableArray<double> voltages,
         ImmutableArray<double> currents,
-        ImmutableArray<PinSeries> pins)
+        ImmutableArray<PinSeries> pins,
+        ImmutableArray<bool> states)
     {
         Id = id;
         Designator = designator;
@@ -23,6 +24,7 @@ public sealed class TransientSeries
         Voltages = voltages;
         Currents = currents;
         Pins = pins;
+        States = states;
     }
 
     public ComponentId Id { get; }
@@ -39,7 +41,11 @@ public sealed class TransientSeries
 
     public ImmutableArray<PinSeries> Pins { get; }
 
+    public ImmutableArray<bool> States { get; }
+
     public bool IsTransistor => ComponentModels.IsTransistor(Kind);
+
+    public bool HasStates => !States.IsDefaultOrEmpty;
 
     public bool TryGetPin(string name, [NotNullWhen(true)] out PinSeries? pin)
     {

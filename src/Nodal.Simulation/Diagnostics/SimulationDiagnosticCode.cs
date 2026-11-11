@@ -11,5 +11,7 @@ public enum SimulationDiagnosticCode
     UnboundedCurrent,
     UnsupportedWaveformFeature,
     TimestepTooSmall,
+    SampleLimit,
+    SwitchInstability,
     RatingExceeded,
 }

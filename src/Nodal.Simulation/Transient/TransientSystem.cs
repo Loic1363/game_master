@@ -12,6 +12,7 @@ internal sealed class TransientSystem
     private readonly ImmutableArray<string> _shuntedNodes;
     private readonly TransientOptions _options;
     private readonly int[] _storageByPrimitive;
+    private readonly int[] _senseByPrimitive;
 
     public TransientSystem(
         ElaboratedCircuit circuit, TransientStorage storage, TransientOptions options)
@@ -34,6 +35,8 @@ internal sealed class TransientSystem
         {
             _storageByPrimitive[storage.PrimitiveOf(element)] = element;
         }
+
+        _senseByPrimitive = SenseBranches.Of(circuit.Primitives);
     }
 
     public MnaUnknowns Unknowns { get; }
@@ -47,6 +50,8 @@ internal sealed class TransientSystem
         PrimitiveKind.VoltageSource => true,
         PrimitiveKind.Inductor => true,
         PrimitiveKind.Resistor => primitive.Value <= 0,
+        PrimitiveKind.Vcvs => true,
+        PrimitiveKind.Ccvs => true,
         _ => false,
     };
 
@@ -95,19 +100,79 @@ internal sealed class TransientSystem
             return Devices.PrincipalCurrentOf(index, deviceState);
         }
 
+        if (primitive.IsControlledCurrent)
+        {
+            return -DeliveredCurrent(index, solution);
+        }
+
         var across = VoltageAcross(index, solution);
 
         return primitive.Kind switch
         {
             PrimitiveKind.Resistor => across / primitive.Value,
+            PrimitiveKind.PushButton =>
+                across / primitive.ResistanceAt(integration.Midpoint(time)),
             PrimitiveKind.Capacitor => CapacitorCurrent(index, across, integration, previous),
             PrimitiveKind.CurrentSource => -primitive.ValueAt(time),
             _ => 0,
         };
     }
 
-    public double[] PinCurrentsOf(int index, double[] deviceState) =>
-        Devices.PinCurrentsOf(index, deviceState);
+    public double[] PinCurrentsOf(
+        int index,
+        double[] solution,
+        double[] deviceState,
+        double time,
+        TransientIntegration integration,
+        TransientState previous)
+    {
+        if (_circuit.Primitives[index].IsNonlinear)
+        {
+            return Devices.PinCurrentsOf(index, deviceState);
+        }
+
+        var output = CurrentOf(index, solution, deviceState, time, integration, previous);
+
+        if (!_circuit.Primitives[index].IsControlledSource)
+        {
+            return [output, -output];
+        }
+
+        var control = ControlCurrentOf(index, solution);
+
+        return [output, -output, control, -control];
+    }
+
+    public bool IsClosed(int index, double[] deviceState, double time)
+    {
+        var primitive = _circuit.Primitives[index];
+
+        return primitive.Kind == PrimitiveKind.Switch
+            ? Devices.IsSwitchClosed(index, deviceState)
+            : primitive.Switch?.IsClosedAt(time) ?? false;
+    }
+
+    public double ControlVoltageOf(int index, double[] solution)
+    {
+        var primitive = _circuit.Primitives[index];
+
+        return Unknowns.NodeVoltage(primitive.ControlPlusNode, solution)
+            - Unknowns.NodeVoltage(primitive.ControlMinusNode, solution);
+    }
+
+    public double ControlCurrentOf(int index, double[] solution)
+    {
+        var sense = _senseByPrimitive[index];
+
+        if (sense < 0)
+        {
+            return 0;
+        }
+
+        var branch = Unknowns.BranchOf(sense);
+
+        return branch >= 0 ? solution[branch] : 0;
+    }
 
     public double VoltageAcross(int index, double[] solution) =>
         Unknowns.NodeVoltage(_circuit.Primitives[index].PlusNode, solution)
@@ -116,9 +181,20 @@ internal sealed class TransientSystem
     private static bool Conducts(Primitive primitive) => primitive.Kind switch
     {
         PrimitiveKind.CurrentSource => false,
+        PrimitiveKind.Vccs => false,
+        PrimitiveKind.Cccs => false,
         PrimitiveKind.Capacitor => primitive.Value > 0,
         _ => true,
     };
+
+    private double DeliveredCurrent(int index, double[] solution)
+    {
+        var primitive = _circuit.Primitives[index];
+
+        return primitive.Value * (primitive.Kind == PrimitiveKind.Vccs
+            ? ControlVoltageOf(index, solution)
+            : ControlCurrentOf(index, solution));
+    }
 
     private double CapacitorCurrent(
         int index, double across, TransientIntegration integration, TransientState previous)
@@ -154,6 +230,13 @@ internal sealed class TransientSystem
 
                 break;
 
+            case PrimitiveKind.PushButton
+                when primitive.ResistanceAt(integration.Midpoint(time)) > 0:
+                stamps.Conductance(
+                    plus, minus, 1 / primitive.ResistanceAt(integration.Midpoint(time)));
+
+                break;
+
             case PrimitiveKind.Capacitor:
                 StampCapacitor(stamps, index, plus, minus, integration, previous);
 
@@ -173,7 +256,67 @@ internal sealed class TransientSystem
                 stamps.Current(plus, minus, primitive.ValueAt(time));
 
                 break;
+
+            case PrimitiveKind.Vcvs:
+                stamps.Branch(branch, plus, minus, 0, 0);
+
+                stamps.ControlledVoltage(
+                    branch,
+                    Unknowns.NodeOf(primitive.ControlPlusNode),
+                    Unknowns.NodeOf(primitive.ControlMinusNode),
+                    primitive.Value);
+
+                break;
+
+            case PrimitiveKind.Ccvs:
+                stamps.Branch(branch, plus, minus, 0, 0);
+                StampSensedVoltage(stamps, index, branch, primitive.Value);
+
+                break;
+
+            case PrimitiveKind.Vccs:
+                stamps.Transconductance(
+                    minus,
+                    plus,
+                    Unknowns.NodeOf(primitive.ControlPlusNode),
+                    Unknowns.NodeOf(primitive.ControlMinusNode),
+                    primitive.Value);
+
+                break;
+
+            case PrimitiveKind.Cccs:
+                StampSensedCurrent(stamps, index, plus, minus, primitive.Value);
+
+                break;
         }
+    }
+
+    private void StampSensedVoltage(MnaStamps stamps, int index, int branch, double gain)
+    {
+        var sense = SenseBranchOf(index);
+
+        if (sense >= 0)
+        {
+            stamps.SensedVoltage(branch, sense, gain);
+        }
+    }
+
+    private void StampSensedCurrent(
+        MnaStamps stamps, int index, int plus, int minus, double gain)
+    {
+        var sense = SenseBranchOf(index);
+
+        if (sense >= 0)
+        {
+            stamps.SensedCurrent(minus, plus, sense, gain);
+        }
+    }
+
+    private int SenseBranchOf(int index)
+    {
+        var sense = _senseByPrimitive[index];
+
+        return sense >= 0 ? Unknowns.BranchOf(sense) : -1;
     }
 
     private void StampCapacitor(

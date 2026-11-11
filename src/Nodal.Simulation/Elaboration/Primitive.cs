@@ -13,7 +13,8 @@ public sealed record Primitive(
     PrimitiveRole Role,
     ImmutableArray<string> Nodes,
     double Value,
-    Waveform? Function = null)
+    Waveform? Function = null,
+    SwitchSettings? Switch = null)
 {
     public Primitive(
         ComponentId owner,
@@ -34,6 +35,10 @@ public sealed record Primitive(
 
     public string ControlNode => Nodes[2];
 
+    public string ControlPlusNode => Nodes[2];
+
+    public string ControlMinusNode => Nodes[3];
+
     public bool IsSource =>
         Kind is PrimitiveKind.VoltageSource or PrimitiveKind.CurrentSource;
 
@@ -45,13 +50,28 @@ public sealed record Primitive(
 
     public bool IsTransistor => IsMosfet || IsBipolar;
 
-    public bool IsNonlinear => Kind == PrimitiveKind.Diode || IsTransistor;
+    public bool IsControlledSource =>
+        Kind is PrimitiveKind.Vcvs or PrimitiveKind.Vccs
+            or PrimitiveKind.Cccs or PrimitiveKind.Ccvs;
+
+    public bool IsCurrentControlled => Kind is PrimitiveKind.Cccs or PrimitiveKind.Ccvs;
+
+    public bool IsControlledVoltage => Kind is PrimitiveKind.Vcvs or PrimitiveKind.Ccvs;
+
+    public bool IsControlledCurrent => Kind is PrimitiveKind.Vccs or PrimitiveKind.Cccs;
+
+    public bool IsCurrentSense => Role == PrimitiveRole.CurrentSense;
+
+    public bool IsNonlinear =>
+        Kind == PrimitiveKind.Diode || Kind == PrimitiveKind.Switch || IsTransistor;
 
     public ImmutableArray<(string From, string To)> ConductionPaths => IsBipolar
         ? [(ControlNode, MinusNode), (ControlNode, PlusNode)]
         : [(PlusNode, MinusNode)];
 
     public double ValueAt(double time) => Function?.ValueAt(time) ?? Value;
+
+    public double ResistanceAt(double time) => Switch?.ResistanceAt(time) ?? Value;
 
     public bool Equals(Primitive? other) =>
         other is not null
@@ -61,7 +81,8 @@ public sealed record Primitive(
         && Role == other.Role
         && StructuralEquality.ItemsEqual(Nodes, other.Nodes)
         && Value.Equals(other.Value)
-        && Equals(Function, other.Function);
+        && Equals(Function, other.Function)
+        && Equals(Switch, other.Switch);
 
     public override int GetHashCode() => HashCode.Combine(
         Owner,
@@ -70,7 +91,8 @@ public sealed record Primitive(
         Role,
         StructuralEquality.ItemsHash(Nodes),
         Value,
-        Function);
+        Function,
+        Switch);
 
     public override string ToString() =>
         $"{Kind} {Designator} {Role} {string.Join(' ', Nodes)} "

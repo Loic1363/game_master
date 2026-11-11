@@ -7,4 +7,6 @@ public enum DeviceRegion
     Saturation,
     ForwardActive,
     ReverseActive,
+    On,
+    Off,
 }

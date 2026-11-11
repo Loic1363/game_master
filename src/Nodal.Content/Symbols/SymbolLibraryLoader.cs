@@ -77,6 +77,7 @@ public static class SymbolLibraryLoader
             symbols.Add(symbol);
         }
 
+        diagnostics.AddRange(source.Diagnostics);
         diagnostics.AddRange(MissingSymbolWarnings(catalog, symbols));
 
         return new SymbolLibraryLoadResult(new SymbolLibrary(symbols), [.. diagnostics]);

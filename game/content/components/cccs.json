@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "id": "cccs",
+  "name": "Current-controlled current source",
+  "description": "Ideal source that drives its gain times the current entering control-plus out of its plus terminal.",
+  "category": "source",
+  "designatorPrefix": "F",
+  "pins": [
+    { "name": "plus", "x": 0, "y": -2 },
+    { "name": "minus", "x": 0, "y": 2 },
+    { "name": "control-plus", "x": -2, "y": -1 },
+    { "name": "control-minus", "x": -2, "y": 1 }
+  ],
+  "parameters": [
+    { "name": "gain", "label": "Gain", "tier": "basic", "unit": "dimensionless", "default": "10" }
+  ]
+}

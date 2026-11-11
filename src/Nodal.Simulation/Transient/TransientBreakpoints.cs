@@ -21,6 +21,12 @@ internal sealed class TransientBreakpoints
             {
                 candidates.AddRange(function.BreakpointsUntil(plan.StopTime));
             }
+
+            if (primitive.Switch?.Presses is { } presses)
+            {
+                candidates.AddRange(
+                    presses.Instants.Where(instant => instant > 0 && instant <= plan.StopTime));
+            }
         }
 
         candidates.Add(plan.StopTime);

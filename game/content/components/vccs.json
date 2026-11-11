@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "id": "vccs",
+  "name": "Voltage-controlled current source",
+  "description": "Ideal source that drives its transconductance times the control voltage out of its plus terminal.",
+  "category": "source",
+  "designatorPrefix": "G",
+  "pins": [
+    { "name": "plus", "x": 0, "y": -2 },
+    { "name": "minus", "x": 0, "y": 2 },
+    { "name": "control-plus", "x": -2, "y": -1 },
+    { "name": "control-minus", "x": -2, "y": 1 }
+  ],
+  "parameters": [
+    { "name": "transconductance", "label": "Transconductance", "tier": "basic", "unit": "siemens", "default": "1m" }
+  ]
+}

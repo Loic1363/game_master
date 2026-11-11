@@ -4,7 +4,7 @@ using Nodal.Foundation.Collections;
 namespace Nodal.Simulation.Dc;
 
 public sealed record DeviceOperatingPoint(
-    DeviceRegion Region, ImmutableArray<DeviceQuantity> Quantities)
+    DeviceRegion? Region, ImmutableArray<DeviceQuantity> Quantities)
 {
     public bool Equals(DeviceOperatingPoint? other) =>
         other is not null

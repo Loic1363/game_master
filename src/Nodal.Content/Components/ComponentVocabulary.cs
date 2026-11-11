@@ -23,6 +23,7 @@ internal static class ComponentVocabulary
         ["second"] = Unit.Second,
         ["hertz"] = Unit.Hertz,
         ["watt"] = Unit.Watt,
+        ["siemens"] = Unit.Siemens,
     };
 
     private static readonly Dictionary<string, ParameterTier> TierByName = new(StringComparer.Ordinal)
@@ -35,6 +36,7 @@ internal static class ComponentVocabulary
     {
         ["quantity"] = ParameterKind.Quantity,
         ["waveform"] = ParameterKind.Waveform,
+        ["schedule"] = ParameterKind.Schedule,
     };
 
     private static readonly Dictionary<string, StandardSeries> SeriesByName = new(StringComparer.Ordinal)
@@ -63,6 +65,19 @@ internal static class ComponentVocabulary
 
     public static bool TryKind(string name, out ParameterKind kind) =>
         KindByName.TryGetValue(name, out kind);
+
+    public static string NameOf(ParameterKind kind)
+    {
+        foreach (var entry in KindByName)
+        {
+            if (entry.Value == kind)
+            {
+                return entry.Key;
+            }
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown parameter kind.");
+    }
 
     public static bool TrySeries(string name, out StandardSeries series) =>
         SeriesByName.TryGetValue(name, out series);

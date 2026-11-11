@@ -7,17 +7,24 @@ namespace Nodal.Simulation.Transient;
 
 internal sealed class TransientRecorder
 {
+    private const int SeriesPerComponent = 2;
+
     private readonly ElaboratedCircuit _circuit;
+    private readonly long _maxSamples;
+    private readonly int _seriesCount;
     private readonly ImmutableArray<string> _nets;
     private readonly List<double> _times = [];
     private readonly Dictionary<string, List<double>> _netVoltages = new(StringComparer.Ordinal);
     private readonly Dictionary<ComponentId, List<double>> _voltages = [];
     private readonly Dictionary<ComponentId, List<double>> _currents = [];
     private readonly Dictionary<ComponentId, List<double>[]> _pinCurrents = [];
+    private readonly Dictionary<ComponentId, List<bool>> _states = [];
 
-    public TransientRecorder(ElaboratedCircuit circuit, ImmutableArray<string> excludedNets)
+    public TransientRecorder(
+        ElaboratedCircuit circuit, ImmutableArray<string> excludedNets, long maxSamples)
     {
         _circuit = circuit;
+        _maxSamples = maxSamples;
         _nets =
         [
             .. circuit.ExternalNets.Where(
@@ -35,14 +42,28 @@ internal sealed class TransientRecorder
             _currents[component.Id] = [];
             _pinCurrents[component.Id] =
                 [.. component.Pins.Select(_ => new List<double>())];
+
+            if (HasState(component))
+            {
+                _states[component.Id] = [];
+            }
         }
+
+        _seriesCount = _nets.Length
+            + circuit.Components.Sum(
+                component => SeriesPerComponent
+                    + component.Pins.Length
+                    + (HasState(component) ? 1 : 0));
     }
+
+    public bool IsFull => (long)_times.Count * _seriesCount > _maxSamples;
 
     public void Add(
         double time,
         Func<string, double> nodeVoltage,
         Func<int, double> primitiveCurrent,
-        Func<int, double[]> pinCurrents)
+        Func<int, double[]> pinCurrents,
+        Func<int, bool> isClosed)
     {
         _times.Add(time);
 
@@ -60,6 +81,11 @@ internal sealed class TransientRecorder
 
             _currents[component.Id].Add(current);
             AddPinCurrents(component, current, pinCurrents);
+
+            if (HasState(component))
+            {
+                _states[component.Id].Add(isClosed(component.TerminalPrimitives[0]));
+            }
         }
     }
 
@@ -80,11 +106,14 @@ internal sealed class TransientRecorder
             diagnostics,
             statistics);
 
+    private static bool HasState(ElaboratedComponent component) =>
+        component.IsVoltageControlledSwitch || component.IsPushButton;
+
     private void AddPinCurrents(
         ElaboratedComponent component, double current, Func<int, double[]> pinCurrents)
     {
         var lists = _pinCurrents[component.Id];
-        var values = component.IsTransistor
+        var values = component.ReportsPinCurrents
             ? pinCurrents(component.TerminalPrimitives[0])
             : [current, -current];
 
@@ -120,11 +149,15 @@ internal sealed class TransientRecorder
                 component.Kind,
                 [.. _voltages[component.Id]],
                 [.. _currents[component.Id]],
-                PinSeriesOf(component));
+                PinSeriesOf(component),
+                StatesOf(component));
         }
 
         return components.ToImmutable();
     }
+
+    private ImmutableArray<bool> StatesOf(ElaboratedComponent component) =>
+        _states.TryGetValue(component.Id, out var states) ? [.. states] : [];
 
     private ImmutableArray<PinSeries> PinSeriesOf(ElaboratedComponent component) =>
     [

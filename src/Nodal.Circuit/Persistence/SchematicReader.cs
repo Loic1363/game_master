@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Text.Json;
 using Nodal.Circuit.Geometry;
 using Nodal.Circuit.Schematics;
@@ -10,6 +11,7 @@ namespace Nodal.Circuit.Persistence;
 internal sealed class SchematicReader
 {
     private const int PointLength = 2;
+    private const string PointCountFormat = "N0";
 
     private static readonly JsonDocumentOptions StrictJson = new()
     {
@@ -19,6 +21,7 @@ internal sealed class SchematicReader
 
     private readonly ComponentCatalog _catalog;
     private readonly List<SchematicDiagnostic> _diagnostics = [];
+    private int _suppressed;
     private bool _rejected;
 
     private SchematicReader(ComponentCatalog catalog) => _catalog = catalog;
@@ -408,11 +411,40 @@ internal sealed class SchematicReader
             return Dropped(path);
         }
 
-        var settings = new TransientSettings(
-            stopTime.Value, outputStep, maxStep, startFromZero);
+        var settings = Repaired(
+            new TransientSettings(stopTime.Value, outputStep, maxStep, startFromZero), path);
 
         return settings.IsValid ? settings : Dropped(path);
     }
+
+    private TransientSettings Repaired(TransientSettings settings, string path)
+    {
+        if (!settings.OutputPointsAreBounded)
+        {
+            Warn(
+                path,
+                $"The transient settings ask for {PointsText(settings.OutputPoints)} output "
+                    + "points, more than the limit of "
+                    + $"{SchematicLimits.CountText((long)SchematicLimits.MaxTransientPoints)}; "
+                    + "they were reset to the defaults.");
+
+            return settings with { OutputStep = null, MaxStep = null };
+        }
+
+        if (settings.MaxStep is > 0 && !settings.MaxStepIsLargeEnough)
+        {
+            Warn(path, "The maximum step is too small for the stop time; it was unset.");
+
+            return settings with { MaxStep = null };
+        }
+
+        return settings;
+    }
+
+    private static string PointsText(double? points) =>
+        points is { } value
+            ? value.ToString(PointCountFormat, CultureInfo.InvariantCulture)
+            : string.Empty;
 
     private bool TryReadSeconds(
         JsonElement owner, string ownerPath, string fieldName, out double? seconds)
@@ -534,8 +566,29 @@ internal sealed class SchematicReader
             return [];
         }
 
-        return ReadElements(
-            array, JsonPath.Field(JsonPath.Root, SchematicFields.Components), ReadComponent);
+        var path = JsonPath.Field(JsonPath.Root, SchematicFields.Components);
+
+        return CountIsBounded(
+            array, path, SchematicLimits.MaxComponents, SchematicFields.Components)
+            ? ReadElements(array, path, ReadComponent)
+            : [];
+    }
+
+    private bool CountIsBounded(JsonElement array, string path, int limit, string entryNoun)
+    {
+        var count = array.GetArrayLength();
+
+        if (count <= limit)
+        {
+            return true;
+        }
+
+        Reject(
+            path,
+            $"The file has too many {entryNoun}: {SchematicLimits.CountText(count)}, while the "
+                + $"limit is {SchematicLimits.CountText(limit)}.");
+
+        return false;
     }
 
     private ComponentInstance? ReadComponent(JsonElement element, string path)
@@ -697,6 +750,11 @@ internal sealed class SchematicReader
             return WaveformProblem(element, parameter, out value);
         }
 
+        if (parameter.IsSchedule)
+        {
+            return ScheduleProblem(element, parameter, out value);
+        }
+
         if (element.ValueKind != JsonValueKind.Number)
         {
             return $"{parameter.Name} must be {JsonValueKindNames.Of(JsonValueKind.Number)}";
@@ -725,6 +783,21 @@ internal sealed class SchematicReader
         {
             return $"{parameter.Name} {quantity} is not in {series}";
         }
+
+        return null;
+    }
+
+    private static string? ScheduleProblem(
+        JsonElement element, ParameterDefinition parameter, out ParameterValue value)
+    {
+        value = default;
+
+        if (!ScheduleJson.TryRead(element, out var schedule, out var problem))
+        {
+            return $"{parameter.Name} {problem}";
+        }
+
+        value = ParameterValue.Of(schedule, parameter.Unit);
 
         return null;
     }
@@ -758,7 +831,11 @@ internal sealed class SchematicReader
             return [];
         }
 
-        return ReadElements(array, JsonPath.Field(JsonPath.Root, SchematicFields.Wires), ReadWire);
+        var path = JsonPath.Field(JsonPath.Root, SchematicFields.Wires);
+
+        return CountIsBounded(array, path, SchematicLimits.MaxWires, SchematicFields.Wires)
+            ? ReadElements(array, path, ReadWire)
+            : [];
     }
 
     private Wire? ReadWire(JsonElement element, string path)
@@ -1066,16 +1143,46 @@ internal sealed class SchematicReader
         return Result(null);
     }
 
-    private SchematicReadResult Result(Schematic? schematic) => new(schematic, [.. _diagnostics]);
+    private SchematicReadResult Result(Schematic? schematic) => new(schematic, [.. Reported()]);
+
+    private IEnumerable<SchematicDiagnostic> Reported()
+    {
+        if (_suppressed == 0)
+        {
+            return _diagnostics;
+        }
+
+        var summary = $"… and {SchematicLimits.CountText(_suppressed)} more problems.";
+
+        return
+        [
+            .. _diagnostics,
+            _rejected
+                ? SchematicDiagnostic.Error(JsonPath.Root, summary)
+                : SchematicDiagnostic.Warning(JsonPath.Root, summary),
+        ];
+    }
 
     private void Reject(string path, string message)
     {
         _rejected = true;
-        _diagnostics.Add(SchematicDiagnostic.Error(path, message));
+        Add(SchematicDiagnostic.Error(path, message));
     }
 
     private void Warn(string path, string message) => Warn(path, null, message);
 
     private void Warn(string path, string? subject, string message) =>
-        _diagnostics.Add(SchematicDiagnostic.Warning(path, subject, message));
+        Add(SchematicDiagnostic.Warning(path, subject, message));
+
+    private void Add(SchematicDiagnostic diagnostic)
+    {
+        if (_diagnostics.Count >= SchematicLimits.MaxDiagnostics)
+        {
+            _suppressed++;
+
+            return;
+        }
+
+        _diagnostics.Add(diagnostic);
+    }
 }

@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Globalization;
 using Nodal.Circuit.Netlists;
 using Nodal.Content.Components;
+using Nodal.Foundation.Schedules;
 using Nodal.Foundation.Waveforms;
 using static Nodal.Simulation.Elaboration.ParameterValues;
 
@@ -45,8 +46,18 @@ public static class Elaborator
     {
         var pins = PinsOf(element, kind);
 
-        return ComponentModels.IsTransistor(kind)
-            ? Transistor(element, definition, kind, pins, primitives)
+        if (ComponentModels.IsTransistor(kind))
+        {
+            return Transistor(element, definition, kind, pins, primitives);
+        }
+
+        if (ComponentModels.IsControlledSource(kind))
+        {
+            return ControlledSource(element, definition, kind, pins, primitives);
+        }
+
+        return ComponentModels.IsSwitch(kind)
+            ? Switch(element, definition, kind, pins, primitives)
             : TwoTerminal(element, definition, kind, pins, primitives, nodes);
     }
 
@@ -74,18 +85,103 @@ public static class Elaborator
             [.. pins.Select(pin => pin.Net)],
             0));
 
-        return new ElaboratedComponent(
+        return Component(element, definition, kind, pins, [index], [index]);
+    }
+
+    private static ElaboratedComponent ControlledSource(
+        NetlistElement element,
+        ComponentDefinition definition,
+        ComponentKind kind,
+        ImmutableArray<ElaboratedPin> pins,
+        ImmutableArray<Primitive>.Builder primitives)
+    {
+        var index = primitives.Count;
+
+        primitives.Add(new Primitive(
             element.Id,
+            element.Designator,
+            ComponentModels.PrimitiveOf(kind),
+            PrimitiveRole.Principal,
+            [.. pins.Select(pin => pin.Net)],
+            Required(element, definition, GainParameterOf(kind))));
+
+        var owned = ImmutableArray.CreateBuilder<int>(2);
+
+        owned.Add(index);
+
+        if (ComponentModels.IsCurrentControlled(kind))
+        {
+            owned.Add(primitives.Count);
+
+            primitives.Add(new Primitive(
+                element.Id,
+                element.Designator,
+                PrimitiveKind.VoltageSource,
+                PrimitiveRole.CurrentSense,
+                pins[2].Net,
+                pins[3].Net,
+                0));
+        }
+
+        return Component(element, definition, kind, pins, owned.ToImmutable(), [index]);
+    }
+
+    private static ElaboratedComponent Switch(
+        NetlistElement element,
+        ComponentDefinition definition,
+        ComponentKind kind,
+        ImmutableArray<ElaboratedPin> pins,
+        ImmutableArray<Primitive>.Builder primitives)
+    {
+        var index = primitives.Count;
+
+        primitives.Add(new Primitive(
+            element.Id,
+            element.Designator,
+            ComponentModels.PrimitiveOf(kind),
+            PrimitiveRole.Principal,
+            [.. pins.Select(pin => pin.Net)],
+            0,
+            null,
+            SettingsOf(element, definition, kind)));
+
+        return Component(element, definition, kind, pins, [index], [index]);
+    }
+
+    private static string GainParameterOf(ComponentKind kind) => kind switch
+    {
+        ComponentKind.Vccs => CircuitParameters.Transconductance,
+        ComponentKind.Ccvs => CircuitParameters.Transresistance,
+        _ => CircuitParameters.Gain,
+    };
+
+    private static SwitchSettings SettingsOf(
+        NetlistElement element, ComponentDefinition definition, ComponentKind kind) => new(
+        Required(element, definition, CircuitParameters.OnResistance),
+        Required(element, definition, CircuitParameters.OffResistance),
+        Required(element, definition, CircuitParameters.Threshold),
+        Required(element, definition, CircuitParameters.Hysteresis),
+        kind == ComponentKind.PushButton
+            ? Schedule(element, definition, CircuitParameters.Presses)
+            : null);
+
+    private static ElaboratedComponent Component(
+        NetlistElement element,
+        ComponentDefinition definition,
+        ComponentKind kind,
+        ImmutableArray<ElaboratedPin> pins,
+        ImmutableArray<int> owned,
+        ImmutableArray<int> terminals) =>
+        new(element.Id,
             element.Designator,
             definition.Name,
             kind,
             pins[0].Net,
             pins[1].Net,
             pins,
-            [index],
-            [index],
+            owned,
+            terminals,
             RatingsOf(element));
-    }
 
     private static ElaboratedComponent TwoTerminal(
         NetlistElement element,
@@ -129,17 +225,8 @@ public static class Elaborator
             primitives.Add(shunt.Between(element, plus, minus));
         }
 
-        return new ElaboratedComponent(
-            element.Id,
-            element.Designator,
-            definition.Name,
-            kind,
-            plus,
-            minus,
-            pins,
-            owned.ToImmutable(),
-            terminals.ToImmutable(),
-            RatingsOf(element));
+        return Component(
+            element, definition, kind, pins, owned.ToImmutable(), terminals.ToImmutable());
     }
 
     private static List<Part> Chain(

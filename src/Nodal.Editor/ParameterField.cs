@@ -1,5 +1,6 @@
 using Nodal.Content.Components;
 using Nodal.Foundation.Quantities;
+using Nodal.Foundation.Schedules;
 using Nodal.Foundation.Waveforms;
 
 namespace Nodal.Editor;
@@ -35,6 +36,8 @@ public sealed class ParameterField
     public Quantity? Suggestion { get; private set; }
 
     public bool IsWaveform => Definition.IsWaveform;
+
+    public bool IsSchedule => Definition.IsSchedule;
 
     public bool IsValid => Error is null;
 
@@ -105,7 +108,26 @@ public sealed class ParameterField
             return;
         }
 
+        if (Definition.IsSchedule)
+        {
+            ValidateSchedule(text);
+
+            return;
+        }
+
         ValidateQuantity(text);
+    }
+
+    private void ValidateSchedule(string text)
+    {
+        if (PressScheduleText.TryParse(text, out var schedule, out var fault))
+        {
+            Value = ParameterValue.Of(schedule, Definition.Unit);
+
+            return;
+        }
+
+        Error = PressScheduleErrorText.Of(fault);
     }
 
     private void ValidateWaveform(string text)

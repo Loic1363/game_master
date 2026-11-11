@@ -6,6 +6,8 @@ namespace Nodal.Simulation.Dc;
 
 internal sealed class NewtonSolver
 {
+    private const int UnstableStateChanges = 2;
+
     private readonly MnaUnknowns _unknowns;
     private readonly ImmutableArray<DcElement> _elements;
     private readonly NonlinearDevices _devices;
@@ -43,6 +45,8 @@ internal sealed class NewtonSolver
     {
         var state = (double[])startState.Clone();
         var previous = Array.Empty<double>();
+        var switches = _devices.Switches;
+        var changes = new int[switches.Length];
 
         for (var iteration = 1; iteration <= _options.MaxIterations; iteration++)
         {
@@ -52,11 +56,13 @@ internal sealed class NewtonSolver
 
             if (!TrySolve(bias, out var solution))
             {
-                return DcAttempt.Failed(state, iteration);
+                return DcAttempt.Failed(state, iteration, Unstable(switches, changes));
             }
 
             var limited = _devices.Limited(
                 _devices.Measure(solution), state, out var limitedAny);
+
+            _devices.AddStateChanges(state, limited, changes);
 
             if (previous.Length > 0
                 && !limitedAny
@@ -70,7 +76,30 @@ internal sealed class NewtonSolver
             previous = solution;
         }
 
-        return DcAttempt.Failed(state, _options.MaxIterations);
+        return DcAttempt.Failed(
+            state, _options.MaxIterations, Unstable(switches, changes));
+    }
+
+    private static SwitchIdentity? Unstable(
+        ImmutableArray<SwitchIdentity> switches, int[] changes)
+    {
+        SwitchIdentity? unstable = null;
+
+        for (var index = 0; index < switches.Length; index++)
+        {
+            if (changes[index] < UnstableStateChanges)
+            {
+                continue;
+            }
+
+            if (unstable is null
+                || string.CompareOrdinal(switches[index].Designator, unstable.Designator) < 0)
+            {
+                unstable = switches[index];
+            }
+        }
+
+        return unstable;
     }
 
     private bool TrySolve(DcBias bias, out double[] solution)

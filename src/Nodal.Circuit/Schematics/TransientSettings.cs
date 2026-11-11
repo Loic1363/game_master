@@ -7,7 +7,24 @@ public sealed record TransientSettings(
     bool StartFromZero = false)
 {
     public bool IsValid =>
-        IsPositive(StopTime) && IsPositiveOrUnset(OutputStep) && IsPositiveOrUnset(MaxStep);
+        IsPositive(StopTime)
+        && IsPositiveOrUnset(OutputStep)
+        && IsPositiveOrUnset(MaxStep)
+        && OutputPointsAreBounded
+        && MaxStepIsLargeEnough;
+
+    public double? OutputPoints =>
+        OutputStep is { } step && IsPositive(step) && IsPositive(StopTime)
+            ? StopTime / step
+            : null;
+
+    public bool OutputPointsAreBounded =>
+        OutputPoints is not { } points || points <= SchematicLimits.MaxTransientPoints;
+
+    public bool MaxStepIsLargeEnough =>
+        MaxStep is not { } step
+        || !IsPositive(StopTime)
+        || step >= StopTime * SchematicLimits.SmallestMaxStepFraction;
 
     private static bool IsPositive(double value) => double.IsFinite(value) && value > 0;
 

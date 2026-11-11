@@ -85,10 +85,17 @@ public sealed class TransientResult
             : 0;
 
     public DeviceOperatingPoint? DeviceAt(ComponentId id, double time) =>
-        Components.TryGetValue(id, out var series) && series.IsTransistor
+        Components.TryGetValue(id, out var series)
             ? TransientDevices.Describe(
-                series, net => VoltageAt(net, time), pin => CurrentAt(id, pin, time))
+                series,
+                net => VoltageAt(net, time),
+                pin => CurrentAt(id, pin, time),
+                ComponentVoltageAt(id, time),
+                IsClosedAt(series, time))
             : null;
+
+    public bool IsClosedAt(ComponentId id, double time) =>
+        Components.TryGetValue(id, out var series) && IsClosedAt(series, time);
 
     public double ComponentVoltageAt(ComponentId id, double time) =>
         Components.TryGetValue(id, out var series) ? At(series.Voltages, time) : 0;
@@ -189,6 +196,26 @@ public sealed class TransientResult
         }
 
         return text;
+    }
+
+    private bool IsClosedAt(TransientSeries series, double time) =>
+        series.HasStates && series.States[SampleAtOrBefore(time)];
+
+    private int SampleAtOrBefore(double time)
+    {
+        if (Times.IsDefaultOrEmpty || time <= Times[0])
+        {
+            return 0;
+        }
+
+        if (time >= Times[^1])
+        {
+            return Times.Length - 1;
+        }
+
+        var found = ImmutableArray.BinarySearch(Times, time);
+
+        return found >= 0 ? found : ~found - 1;
     }
 
     private double At(ImmutableArray<double> values, double time)

@@ -51,6 +51,13 @@ public static class Program
             return Failure;
         }
 
+        if (SchematicFile.FileSizeProblem(new FileInfo(schematicPath).Length) is { } tooLarge)
+        {
+            Console.Error.WriteLine(tooLarge);
+
+            return Failure;
+        }
+
         var result = SchematicFile.Read(File.ReadAllText(schematicPath), catalog);
 
         if (!result.Loaded)

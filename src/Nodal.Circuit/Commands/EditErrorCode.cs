@@ -10,6 +10,7 @@ public enum EditErrorCode
     UnitMismatch,
     KindMismatch,
     InvalidWaveform,
+    InvalidSchedule,
     ValueNotInSeries,
     ValueOutOfBounds,
     ParameterIsRequired,

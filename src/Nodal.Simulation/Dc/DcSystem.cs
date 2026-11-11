@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Nodal.Simulation.Elaboration;
 using Nodal.Simulation.Mna;
 
 namespace Nodal.Simulation.Dc;
@@ -59,6 +60,48 @@ internal static class DcSystem
         if (element.SourceCurrent != 0)
         {
             stamps.Current(plus, minus, element.SourceCurrent * bias.SourceScale);
+        }
+
+        if (element.Control is { } control)
+        {
+            StampControl(stamps, unknowns, element, branch, control, plus, minus);
+        }
+    }
+
+    private static void StampControl(
+        MnaStamps stamps,
+        MnaUnknowns unknowns,
+        DcElement element,
+        int branch,
+        DcControl control,
+        int plus,
+        int minus)
+    {
+        var controlPlus = unknowns.NodeOf(control.PlusNode);
+        var controlMinus = unknowns.NodeOf(control.MinusNode);
+        var sense = control.HasSense ? unknowns.BranchOf(control.SenseElement) : -1;
+
+        switch (element.Kind)
+        {
+            case PrimitiveKind.Vcvs:
+                stamps.ControlledVoltage(branch, controlPlus, controlMinus, element.Gain);
+
+                break;
+
+            case PrimitiveKind.Ccvs when sense >= 0:
+                stamps.SensedVoltage(branch, sense, element.Gain);
+
+                break;
+
+            case PrimitiveKind.Vccs:
+                stamps.Transconductance(minus, plus, controlPlus, controlMinus, element.Gain);
+
+                break;
+
+            case PrimitiveKind.Cccs when sense >= 0:
+                stamps.SensedCurrent(minus, plus, sense, element.Gain);
+
+                break;
         }
     }
 }

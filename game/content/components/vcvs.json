@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "id": "vcvs",
+  "name": "Voltage-controlled voltage source",
+  "description": "Ideal source whose output voltage is its gain times the voltage across its control pins.",
+  "category": "source",
+  "designatorPrefix": "E",
+  "pins": [
+    { "name": "plus", "x": 0, "y": -2 },
+    { "name": "minus", "x": 0, "y": 2 },
+    { "name": "control-plus", "x": -2, "y": -1 },
+    { "name": "control-minus", "x": -2, "y": 1 }
+  ],
+  "parameters": [
+    { "name": "gain", "label": "Gain", "tier": "basic", "unit": "dimensionless", "default": "10" }
+  ]
+}

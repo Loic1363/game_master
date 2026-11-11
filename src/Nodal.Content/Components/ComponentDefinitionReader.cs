@@ -3,6 +3,7 @@ using System.Text.Json;
 using Nodal.Content.Diagnostics;
 using Nodal.Content.Sources;
 using Nodal.Foundation.Quantities;
+using Nodal.Foundation.Schedules;
 
 namespace Nodal.Content.Components;
 
@@ -247,7 +248,7 @@ internal sealed class ComponentDefinitionReader
         if (!TryReadUnit(element, path, out var unit)
             || !TryReadTier(element, path, out var tier)
             || !TryReadKind(element, path, out var kind)
-            || !TryReadQuantity(element, path, ComponentFields.Default, unit, out var defaultValue)
+            || !TryReadDefault(element, path, unit, kind, out var defaultValue)
             || !TryReadQuantity(element, path, ComponentFields.Minimum, unit, out var minimum)
             || !TryReadQuantity(element, path, ComponentFields.Maximum, unit, out var maximum)
             || !TryReadSeries(element, path, out var series))
@@ -255,10 +256,14 @@ internal sealed class ComponentDefinitionReader
             return null;
         }
 
+        var defaultQuantity = defaultValue is { IsQuantity: true } quantity
+            ? quantity.Quantity
+            : (Quantity?)null;
+
         if (!BoundsAreOrdered(minimum, maximum, path)
-            || !RespectsBounds(defaultValue, minimum, maximum, path)
-            || !BelongsToSeries(series, defaultValue, path)
-            || !IsPlainWaveform(kind, defaultValue, minimum, maximum, series, path))
+            || !RespectsBounds(defaultQuantity, minimum, maximum, path)
+            || !BelongsToSeries(series, defaultQuantity, path)
+            || !DeclaresAllowedFields(kind, defaultValue, minimum, maximum, series, path))
         {
             return null;
         }
@@ -269,24 +274,97 @@ internal sealed class ComponentDefinitionReader
             : null;
     }
 
-    private bool IsPlainWaveform(
+    private bool TryReadDefault(
+        JsonElement element, string path, Unit unit, ParameterKind kind, out ParameterValue? value)
+    {
+        if (kind != ParameterKind.Schedule)
+        {
+            var read = TryReadQuantity(element, path, ComponentFields.Default, unit, out var quantity);
+
+            value = quantity is { } parsed ? ParameterValue.Of(parsed) : null;
+
+            return read;
+        }
+
+        value = null;
+
+        if (!TryReadText(element, path, ComponentFields.Default, out var text))
+        {
+            return false;
+        }
+
+        if (text is null)
+        {
+            return true;
+        }
+
+        if (PressScheduleText.TryParse(text, out var schedule, out var fault))
+        {
+            value = ParameterValue.Of(schedule, unit);
+
+            return true;
+        }
+
+        Reject(
+            JsonPath.Field(path, ComponentFields.Default),
+            $"'{text}' is not a valid press schedule ({PressScheduleErrorText.Of(fault)})");
+
+        return false;
+    }
+
+    private bool TryReadText(
+        JsonElement element, string path, string fieldName, out string? text)
+    {
+        text = null;
+
+        if (!element.TryGetProperty(fieldName, out var field))
+        {
+            return true;
+        }
+
+        if (field.ValueKind != JsonValueKind.String)
+        {
+            Reject(
+                JsonPath.Field(path, fieldName),
+                $"Field '{fieldName}' must be {JsonValueKindNames.Of(JsonValueKind.String)}.");
+
+            return false;
+        }
+
+        var read = field.GetString() ?? string.Empty;
+
+        if (read.Trim().Length == 0)
+        {
+            Reject(JsonPath.Field(path, fieldName), $"Field '{fieldName}' must not be empty.");
+
+            return false;
+        }
+
+        text = read;
+
+        return true;
+    }
+
+    private bool DeclaresAllowedFields(
         ParameterKind kind,
-        Quantity? defaultValue,
+        ParameterValue? defaultValue,
         Quantity? minimum,
         Quantity? maximum,
         StandardSeries? series,
         string path)
     {
-        if (kind != ParameterKind.Waveform)
+        if (kind == ParameterKind.Quantity)
         {
             return true;
         }
 
-        foreach (var forbidden in Forbidden(defaultValue, minimum, maximum, series))
+        var declaredDefault = kind == ParameterKind.Waveform ? defaultValue : null;
+
+        foreach (var forbidden in Forbidden(declaredDefault, minimum, maximum, series))
         {
             Reject(
                 JsonPath.Field(path, forbidden),
-                $"A waveform parameter cannot declare '{forbidden}'.");
+                $"A {ComponentVocabulary.NameOf(kind)} parameter cannot declare '{forbidden}'.");
 
             return false;
         }
@@ -295,7 +373,7 @@ internal sealed class ComponentDefinitionReader
     }
 
     private static IEnumerable<string> Forbidden(
-        Quantity? defaultValue, Quantity? minimum, Quantity? maximum, StandardSeries? series)
+        ParameterValue? defaultValue, Quantity? minimum, Quantity? maximum, StandardSeries? series)
     {
         if (defaultValue is not null)
         {

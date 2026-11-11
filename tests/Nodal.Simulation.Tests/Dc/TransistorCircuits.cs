@@ -17,6 +17,10 @@ internal static class TransistorCircuits
         _ => Supply - 0.65,
     };
 
+    public static Schematic BipolarRegionBox(
+        string definitionId, double supply, double npnBaseDrive) =>
+        BiasBox(definitionId, supply, Mirrored(definitionId, supply, npnBaseDrive));
+
     public static Schematic CrossCoupledInverters() => Schematic.Empty
         .Add(Circuits.VoltageSource, 0, 0)
         .Add(Circuits.Ground, 0, 2)
@@ -40,6 +44,10 @@ internal static class TransistorCircuits
         .Wire(22, 14, 4, 14)
         .Wire(4, 14, 4, 8)
         .Set("V1", "voltage", Supply);
+
+    private static double Mirrored(
+        string definitionId, double supply, double npnBaseDrive) =>
+        definitionId == Circuits.Pnp ? supply - npnBaseDrive : npnBaseDrive;
 
     public static Schematic BiasBox(string definitionId, double supply, double control) =>
         Schematic.Empty

@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using Nodal.Circuit.Schematics;
 using Nodal.Foundation.Collections;
 using Nodal.Foundation.Quantities;
+using Nodal.Simulation.Elaboration;
 
 namespace Nodal.Simulation.Dc;
 
@@ -10,6 +11,7 @@ public sealed record ComponentOperatingPoint(
     ComponentId Id,
     string Designator,
     string Name,
+    ComponentKind Kind,
     Quantity Voltage,
     Quantity Current,
     Quantity Power,
@@ -20,10 +22,11 @@ public sealed record ComponentOperatingPoint(
         ComponentId id,
         string designator,
         string name,
+        ComponentKind kind,
         Quantity voltage,
         Quantity current,
         Quantity power)
-        : this(id, designator, name, voltage, current, power, [], null)
+        : this(id, designator, name, kind, voltage, current, power, [], null)
     {
     }
 
@@ -52,6 +55,7 @@ public sealed record ComponentOperatingPoint(
         && Id == other.Id
         && string.Equals(Designator, other.Designator, StringComparison.Ordinal)
         && string.Equals(Name, other.Name, StringComparison.Ordinal)
+        && Kind == other.Kind
         && Voltage == other.Voltage
         && Current == other.Current
         && Power == other.Power
@@ -62,11 +66,11 @@ public sealed record ComponentOperatingPoint(
         Id,
         Designator,
         Name,
+        Kind,
         Voltage,
         Current,
         Power,
-        StructuralEquality.ItemsHash(Pins),
-        Device);
+        HashCode.Combine(StructuralEquality.ItemsHash(Pins), Device));
 
     public override string ToString() => $"{Designator} V={Voltage} I={Current} P={Power}";
 }

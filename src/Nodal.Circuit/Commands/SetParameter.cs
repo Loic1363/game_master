@@ -1,6 +1,7 @@
 using Nodal.Circuit.Schematics;
 using Nodal.Content.Components;
 using Nodal.Foundation.Quantities;
+using Nodal.Foundation.Schedules;
 using Nodal.Foundation.Waveforms;
 
 namespace Nodal.Circuit.Commands;
@@ -56,7 +57,26 @@ public sealed record SetParameter(ComponentId Id, string ParameterName, Paramete
                 $"{parameter.Unit}, not in {Value.Unit}.");
         }
 
-        return Value.IsWaveform ? WaveformRejection(component, parameter) : QuantityRejection(component, parameter);
+        if (Value.IsWaveform)
+        {
+            return WaveformRejection(component, parameter);
+        }
+
+        return Value.IsSchedule
+            ? ScheduleRejection(component)
+            : QuantityRejection(component, parameter);
+    }
+
+    private CommandResult? ScheduleRejection(ComponentInstance component)
+    {
+        var fault = Value.Schedule.Validate();
+
+        return fault.IsFault
+            ? CommandResult.Failure(
+                EditErrorCode.InvalidSchedule,
+                $"{component.Designator} cannot take this press schedule: "
+                + PressScheduleErrorText.Of(fault))
+            : null;
     }
 
     private CommandResult? WaveformRejection(
@@ -102,8 +122,12 @@ public sealed record SetParameter(ComponentId Id, string ParameterName, Paramete
         return null;
     }
 
-    private static string Named(ParameterKind kind) =>
-        kind == ParameterKind.Waveform ? "waveform" : "quantity";
+    private static string Named(ParameterKind kind) => kind switch
+    {
+        ParameterKind.Waveform => "waveform",
+        ParameterKind.Schedule => "schedule",
+        _ => "quantity",
+    };
 
     private static bool BelongsToSeries(StandardSeries series, double value) =>
         value > 0 && ESeries.Contains(series, value);

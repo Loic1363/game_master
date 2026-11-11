@@ -10,4 +10,10 @@ public static class DeviceQuantityNames
     public const string CollectorCurrent = "Ic";
     public const string BaseCurrent = "Ib";
     public const string CurrentGain = "β";
+    public const string ControlVoltage = "Vctrl";
+    public const string ControlCurrent = "Ictrl";
+    public const string OutputVoltage = "Vout";
+    public const string OutputCurrent = "Iout";
+    public const string Voltage = "V";
+    public const string Current = "I";
 }

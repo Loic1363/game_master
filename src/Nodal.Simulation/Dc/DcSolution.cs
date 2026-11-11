@@ -61,6 +61,11 @@ internal sealed class DcSolution
             return Devices.PrincipalCurrentOf(primitive, _deviceState);
         }
 
+        if (element.IsControlledCurrent)
+        {
+            return -DeliveredCurrent(element);
+        }
+
         var across = VoltageAcross(primitive);
         var branch = Unknowns.BranchOf(primitive);
 
@@ -70,6 +75,64 @@ internal sealed class DcSolution
 
     public double[] PinCurrentsOf(int primitive) =>
         Devices.PinCurrentsOf(primitive, _deviceState);
+
+    public double[] ControlledPinCurrents(int primitive)
+    {
+        var output = CurrentOf(primitive);
+        var control = ControlCurrentOf(primitive);
+
+        return [output, -output, control, -control];
+    }
+
+    public double ControlCurrentOf(int primitive) =>
+        Elements[primitive].Control is { HasSense: true } control
+            ? BranchCurrentOf(control.SenseElement)
+            : 0;
+
+    public double ControlVoltageOf(int primitive) =>
+        Elements[primitive].Control is { } control
+            ? NodeVoltage(control.PlusNode) - NodeVoltage(control.MinusNode)
+            : 0;
+
+    public bool IsClosedAt(int primitive, double time)
+    {
+        var element = Elements[primitive];
+
+        return element.Kind == PrimitiveKind.Switch
+            ? Devices.IsSwitchClosed(primitive, _deviceState)
+            : element.Switch?.IsClosedAt(time) ?? false;
+    }
+
+    public double[] PinCurrentsAt(int primitive)
+    {
+        var element = Elements[primitive];
+
+        if (element.IsNonlinear)
+        {
+            return PinCurrentsOf(primitive);
+        }
+
+        if (element.Control is not null)
+        {
+            return ControlledPinCurrents(primitive);
+        }
+
+        var current = CurrentOf(primitive);
+
+        return [current, -current];
+    }
+
+    private double DeliveredCurrent(DcElement element) =>
+        element.Gain * (element.Kind == PrimitiveKind.Vccs
+            ? NodeVoltage(element.Control!.PlusNode) - NodeVoltage(element.Control.MinusNode)
+            : BranchCurrentOf(element.Control!.SenseElement));
+
+    private double BranchCurrentOf(int element)
+    {
+        var branch = Unknowns.BranchOf(element);
+
+        return branch >= 0 ? _values[branch] : 0;
+    }
 
     public DeviceOperatingPoint? DeviceOf(int primitive) =>
         Devices.DescribeOf(primitive, _deviceState);

@@ -1,0 +1,8 @@
+* Nodal 0.0.1 export
+V1 N1 0 1
+R1 N1 N2 1000
+F1 0 N3 VF1_sense 10
+VF1_sense N2 0 0
+R2 N3 0 100
+.options TNOM=27
+.end

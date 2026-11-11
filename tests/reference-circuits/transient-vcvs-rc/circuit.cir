@@ -1,0 +1,7 @@
+* Nodal 0.0.1 export
+V1 N1 0 SIN(0 1 1000 0 0 0)
+E1 N2 0 N1 0 5
+R1 N2 N3 1000
+C1 N3 0 1E-07
+.options TNOM=27
+.end

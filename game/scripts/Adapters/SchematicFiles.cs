@@ -44,6 +44,14 @@ public static class SchematicFiles
     {
         try
         {
+            if (SchematicFile.FileSizeProblem(new FileInfo(path).Length) is { } tooLarge)
+            {
+                text = string.Empty;
+                error = tooLarge;
+
+                return false;
+            }
+
             text = File.ReadAllText(path);
             error = string.Empty;
 

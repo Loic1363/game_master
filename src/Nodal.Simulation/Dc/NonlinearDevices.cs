@@ -34,6 +34,36 @@ internal sealed class NonlinearDevices
 
     public bool Any => _devices.Length > 0;
 
+    public ImmutableArray<SwitchIdentity> Switches =>
+        [.. Switching().Select(entry => entry.Device.Identity)];
+
+    public void AddStateChanges(double[] before, double[] after, int[] changes)
+    {
+        var position = 0;
+
+        foreach (var entry in Switching())
+        {
+            if (SwitchDevice.IsClosed(StateOf(before, entry.Index))
+                != SwitchDevice.IsClosed(StateOf(after, entry.Index)))
+            {
+                changes[position]++;
+            }
+
+            position++;
+        }
+    }
+
+    private IEnumerable<(SwitchDevice Device, int Index)> Switching()
+    {
+        for (var index = 0; index < _devices.Length; index++)
+        {
+            if (_devices[index] is SwitchDevice device)
+            {
+                yield return (device, index);
+            }
+        }
+    }
+
     public static NonlinearDevices Resolve(
         ImmutableArray<Primitive> primitives, MnaUnknowns unknowns)
     {
@@ -107,6 +137,15 @@ internal sealed class NonlinearDevices
 
     public bool Has(int primitive) => _deviceByPrimitive[primitive] >= 0;
 
+    public bool IsSwitchClosed(int primitive, double[] state)
+    {
+        var index = _deviceByPrimitive[primitive];
+
+        return index >= 0
+            && _devices[index] is SwitchDevice
+            && SwitchDevice.IsClosed(StateOf(state, index));
+    }
+
     public DeviceOperatingPoint? DescribeOf(int primitive, double[] state)
     {
         var index = _deviceByPrimitive[primitive];
@@ -152,6 +191,14 @@ internal sealed class NonlinearDevices
                 first,
                 second,
                 unknowns.NodeOf(primitive.ControlNode)),
+
+            PrimitiveKind.Switch when primitive.Switch is { } settings => new SwitchDevice(
+                new SwitchIdentity(primitive.Owner, primitive.Designator),
+                settings,
+                first,
+                second,
+                unknowns.NodeOf(primitive.ControlPlusNode),
+                unknowns.NodeOf(primitive.ControlMinusNode)),
 
             _ => null,
         };

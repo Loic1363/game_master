@@ -78,6 +78,35 @@ internal sealed class MnaStamps
         Current(plus, minus, -current);
     }
 
+    public void ControlledVoltage(int branch, int plusControl, int minusControl, double gain)
+    {
+        if (plusControl >= 0)
+        {
+            Matrix.Add(branch, plusControl, -gain);
+        }
+
+        if (minusControl >= 0)
+        {
+            Matrix.Add(branch, minusControl, gain);
+        }
+    }
+
+    public void SensedVoltage(int branch, int senseBranch, double transresistance) =>
+        Matrix.Add(branch, senseBranch, -transresistance);
+
+    public void SensedCurrent(int from, int to, int senseBranch, double gain)
+    {
+        if (from >= 0)
+        {
+            Matrix.Add(from, senseBranch, gain);
+        }
+
+        if (to >= 0)
+        {
+            Matrix.Add(to, senseBranch, -gain);
+        }
+    }
+
     public void Transconductance(
         int from, int to, int plusControl, int minusControl, double transconductance)
     {

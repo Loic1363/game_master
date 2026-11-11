@@ -174,4 +174,56 @@ public class AnalysisSettingsFileTests
 
         Assert.Contains("\"schemaVersion\": 1", text, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void TheOutputPointLimitIsReachedExactly()
+    {
+        var result = ReadWith("""{ "transient": { "stopTime": 1, "outputStep": 1e-6 } }""");
+
+        Assert.True(result.Loaded);
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal(new TransientSettings(1, 1e-6), result.Schematic.Analysis.Transient);
+    }
+
+    [Fact]
+    public void TooManyOutputPointsResetTheStepsToTheirDefaults()
+    {
+        var result = ReadWith(
+            """{ "transient": { "stopTime": 1, "outputStep": 1e-15, "maxStep": 1e-15 } }""");
+
+        Assert.True(result.Loaded);
+        Assert.Equal(new TransientSettings(1), result.Schematic.Analysis.Transient);
+
+        var warning = Assert.Single(result.Warnings);
+
+        Assert.Equal(
+            "The transient settings ask for 1,000,000,000,000,000 output points, more than the "
+            + "limit of 1,000,000; they were reset to the defaults.",
+            warning.Message);
+    }
+
+    [Fact]
+    public void TheSmallestAllowedMaxStepIsKept()
+    {
+        var result = ReadWith("""{ "transient": { "stopTime": 1, "maxStep": 1e-9 } }""");
+
+        Assert.True(result.Loaded);
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal(new TransientSettings(1, null, 1e-9), result.Schematic.Analysis.Transient);
+    }
+
+    [Fact]
+    public void AMaxStepTooSmallForTheStopTimeIsUnset()
+    {
+        var result = ReadWith(
+            """{ "transient": { "stopTime": 1, "outputStep": 1e-3, "maxStep": 1e-10 } }""");
+
+        Assert.True(result.Loaded);
+        Assert.Equal(new TransientSettings(1, 1e-3), result.Schematic.Analysis.Transient);
+
+        var warning = Assert.Single(result.Warnings);
+
+        Assert.Equal(
+            "The maximum step is too small for the stop time; it was unset.", warning.Message);
+    }
 }

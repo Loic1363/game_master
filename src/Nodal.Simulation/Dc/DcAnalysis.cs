@@ -114,21 +114,47 @@ public static class DcAnalysis
             component.Id,
             component.Designator,
             component.Name,
+            component.Kind,
             new Quantity(across, Unit.Volt),
             new Quantity(current, Unit.Ampere),
             new Quantity(pins.Sum(pin => pin.Power.Value), Unit.Watt),
             pins,
-            component.IsTransistor
-                ? solution.DeviceOf(component.TerminalPrimitives[0])
-                : null);
+            DeviceOf(solution, component, across, current));
+    }
+
+    private static DeviceOperatingPoint? DeviceOf(
+        DcSolution solution,
+        ElaboratedComponent component,
+        double across,
+        double current)
+    {
+        var principal = component.TerminalPrimitives[0];
+
+        if (component.HasNonlinearDevice)
+        {
+            return solution.DeviceOf(principal);
+        }
+
+        if (component.IsControlledSource)
+        {
+            return DeviceDescriptions.ControlledSource(
+                component.Kind,
+                ComponentModels.IsCurrentControlled(component.Kind)
+                    ? solution.ControlCurrentOf(principal)
+                    : solution.ControlVoltageOf(principal),
+                across,
+                -current);
+        }
+
+        return component.IsPushButton
+            ? DeviceDescriptions.PushButton(solution.IsClosedAt(principal, 0), across, current)
+            : null;
     }
 
     private static ImmutableArray<PinOperatingPoint> PinsOf(
         DcSolution solution, ElaboratedComponent component, double current)
     {
-        var currents = component.IsTransistor
-            ? solution.PinCurrentsOf(component.TerminalPrimitives[0])
-            : [current, -current];
+        var currents = CurrentsOf(solution, component, current);
 
         return
         [
@@ -137,5 +163,18 @@ public static class DcAnalysis
                 new Quantity(solution.NodeVoltage(pin.Net), Unit.Volt),
                 new Quantity(currents[index], Unit.Ampere))),
         ];
+    }
+
+    private static double[] CurrentsOf(
+        DcSolution solution, ElaboratedComponent component, double current)
+    {
+        if (component.HasNonlinearDevice)
+        {
+            return solution.PinCurrentsOf(component.TerminalPrimitives[0]);
+        }
+
+        return component.IsControlledSource
+            ? solution.ControlledPinCurrents(component.TerminalPrimitives[0])
+            : [current, -current];
     }
 }

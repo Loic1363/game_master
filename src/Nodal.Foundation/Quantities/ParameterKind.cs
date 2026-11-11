@@ -4,4 +4,5 @@ public enum ParameterKind
 {
     Quantity,
     Waveform,
+    Schedule,
 }

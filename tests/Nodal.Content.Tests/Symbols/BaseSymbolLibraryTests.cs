@@ -8,13 +8,14 @@ namespace Nodal.Content.Tests.Symbols;
 
 public class BaseSymbolLibraryTests
 {
-    private const int ExpectedSymbolCount = 11;
+    private const int ExpectedSymbolCount = 17;
     private const double MarginInGridUnits = 1.5;
 
     private static readonly string[] ExpectedComponentIds =
     [
-        "capacitor", "current-source", "diode", "ground", "inductor", "nmos",
-        "npn", "pmos", "pnp", "resistor", "voltage-source",
+        "capacitor", "cccs", "ccvs", "current-source", "diode", "ground", "inductor", "nmos",
+        "npn", "pmos", "pnp", "push-button", "resistor", "switch", "vccs", "vcvs",
+        "voltage-source",
     ];
 
     public static TheoryData<string> ComponentIds => new(ExpectedComponentIds);

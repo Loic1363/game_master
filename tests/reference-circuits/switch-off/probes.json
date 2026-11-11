@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "nodes": [
+    "0",
+    "N1",
+    "N2",
+    "N3"
+  ],
+  "components": [
+    {
+      "designator": "V2",
+      "elements": [
+        "V2"
+      ]
+    },
+    {
+      "designator": "S1",
+      "elements": [
+        "S1"
+      ]
+    },
+    {
+      "designator": "V1",
+      "elements": [
+        "V1"
+      ]
+    },
+    {
+      "designator": "R1",
+      "elements": [
+        "R1"
+      ]
+    }
+  ]
+}

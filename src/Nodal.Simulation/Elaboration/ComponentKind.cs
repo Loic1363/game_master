@@ -13,4 +13,10 @@ public enum ComponentKind
     Pmos,
     Npn,
     Pnp,
+    Vcvs,
+    Vccs,
+    Cccs,
+    Ccvs,
+    Switch,
+    PushButton,
 }

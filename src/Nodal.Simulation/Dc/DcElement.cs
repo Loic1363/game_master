@@ -12,7 +12,10 @@ internal sealed record DcElement(
     ImmutableArray<(string From, string To)> ConductionPaths,
     double? Conductance,
     DcBranch? Branch,
-    double SourceCurrent)
+    double SourceCurrent,
+    double Gain = 0,
+    DcControl? Control = null,
+    SwitchSettings? Switch = null)
 {
     public string FirstNode => Nodes[0];
 
@@ -25,7 +28,10 @@ internal sealed record DcElement(
             or PrimitiveKind.Nmos
             or PrimitiveKind.Pmos
             or PrimitiveKind.Npn
-            or PrimitiveKind.Pnp;
+            or PrimitiveKind.Pnp
+            or PrimitiveKind.Switch;
+
+    public bool IsControlledCurrent => Kind is PrimitiveKind.Vccs or PrimitiveKind.Cccs;
 
     public bool Conducts => Branch is not null || Conductance is not null || IsNonlinear;
 

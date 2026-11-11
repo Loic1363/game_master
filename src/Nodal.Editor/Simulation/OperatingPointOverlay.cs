@@ -73,16 +73,28 @@ public static class OperatingPointOverlay
 
         if (component.Device is { } device)
         {
-            return $"{component.Designator}{Named(component.Name)}: "
-                + DeviceRegionText.Of(device.Region)
-                + string.Concat(
-                    device.Quantities.Select(
-                        quantity => $", {quantity.Name} {DisplayValue.Text(quantity.Value)}"));
+            return Described(component, device);
         }
 
         return $"{component.Designator}: {DisplayValue.Magnitude(component.Voltage)}, "
             + $"{DisplayValue.Magnitude(component.Current)}, {Magnitude(component.Power)} "
             + (component.Absorbs ? AbsorbedText : DeliveredText);
+    }
+
+    private static string Described(
+        ComponentOperatingPoint component, DeviceOperatingPoint device)
+    {
+        var parts = new List<string>();
+
+        if (device.Region is { } region)
+        {
+            parts.Add(DeviceRegionText.Of(region, component.Kind));
+        }
+
+        parts.AddRange(device.Quantities.Select(
+            quantity => $"{quantity.Name} {DisplayValue.Text(quantity.Value)}"));
+
+        return $"{component.Designator}{Named(component.Name)}: " + string.Join(", ", parts);
     }
 
     public static string? DescribeNet(OperatingPoint operatingPoint, string netName) =>

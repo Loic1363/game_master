@@ -12,4 +12,10 @@ public enum PrimitiveKind
     Pmos,
     Npn,
     Pnp,
+    Vcvs,
+    Vccs,
+    Cccs,
+    Ccvs,
+    Switch,
+    PushButton,
 }

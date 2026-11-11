@@ -16,4 +16,12 @@ internal static class CircuitParameters
     public const string PowerRating = "power-rating";
     public const string VoltageRating = "voltage-rating";
     public const string CurrentRating = "current-rating";
+    public const string Gain = "gain";
+    public const string Transconductance = "transconductance";
+    public const string Transresistance = "transresistance";
+    public const string Threshold = "threshold";
+    public const string Hysteresis = "hysteresis";
+    public const string OnResistance = "on-resistance";
+    public const string OffResistance = "off-resistance";
+    public const string Presses = "presses";
 }

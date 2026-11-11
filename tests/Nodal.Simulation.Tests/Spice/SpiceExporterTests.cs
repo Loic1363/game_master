@@ -1,6 +1,7 @@
 using Nodal.Circuit.Netlists;
 using Nodal.Circuit.Schematics;
 using Nodal.Foundation;
+using Nodal.Foundation.Waveforms;
 using Nodal.Simulation.Diagnostics;
 using Nodal.Simulation.Spice;
 using Xunit;
@@ -9,6 +10,8 @@ namespace Nodal.Simulation.Tests.Spice;
 
 public class SpiceExporterTests
 {
+    private static readonly char[] Separators = ['\n', ' ', '(', ')', ','];
+
     [Fact]
     public void EveryComponentKindAndParasiticMatchesTheGoldenDeck()
     {
@@ -79,11 +82,13 @@ public class SpiceExporterTests
     {
         var lines = Lines(GoldenDeck.Build());
 
-        Assert.Equal(".model NODAL_D D(IS=1e-14 N=1)", lines[^7]);
-        Assert.StartsWith(".model NODAL_NMOS NMOS(VTO=1 ", lines[^6], StringComparison.Ordinal);
-        Assert.StartsWith(".model NODAL_PMOS PMOS(VTO=-1 ", lines[^5], StringComparison.Ordinal);
-        Assert.StartsWith(".model NODAL_NPN NPN(", lines[^4], StringComparison.Ordinal);
-        Assert.StartsWith(".model NODAL_PNP PNP(", lines[^3], StringComparison.Ordinal);
+        Assert.Equal(".model NODAL_D D(IS=1e-14 N=1)", lines[^9]);
+        Assert.StartsWith(".model NODAL_NMOS NMOS(VTO=1 ", lines[^8], StringComparison.Ordinal);
+        Assert.StartsWith(".model NODAL_PMOS PMOS(VTO=-1 ", lines[^7], StringComparison.Ordinal);
+        Assert.StartsWith(".model NODAL_NPN NPN(", lines[^6], StringComparison.Ordinal);
+        Assert.StartsWith(".model NODAL_PNP PNP(", lines[^5], StringComparison.Ordinal);
+        Assert.Equal(".model NODAL_SW_S1 SW(VT=1.5 VH=0.5 RON=2 ROFF=2000000000)", lines[^4]);
+        Assert.Equal(".model NODAL_SW_SW1 SW(VT=0.5 VH=0 RON=0.02 ROFF=1000000000)", lines[^3]);
         Assert.Equal(".options TNOM=27", lines[^2]);
         Assert.Equal(".end", lines[^1]);
     }
@@ -198,6 +203,22 @@ public class SpiceExporterTests
     }
 
     [Fact]
+    public void ANegatedZeroIsPrintedWithoutItsSign()
+    {
+        var schematic = Schematic.Empty
+            .Add(Circuits.CurrentSource, 0, 0)
+            .Add(Circuits.Ground, 0, 2)
+            .Add(Circuits.Resistor, 6, 0, Circuits.FirstPinUp)
+            .Add(Circuits.Ground, 6, 2)
+            .Wire(0, -2, 6, -2)
+            .Set("R1", "resistance", 1000)
+            .Function("I1", new PulseWaveform(0, 1e-3, 0, 1e-9, 1e-9, 1e-6, 2e-6));
+
+        Assert.Contains("I1 N1 0 PULSE(0 -0.001 0 1E-09 1E-09 1E-06 2E-06)", Lines(schematic));
+        Assert.DoesNotContain("-0", Tokens(schematic));
+    }
+
+    [Fact]
     public void ExportingTheSameNetlistTwiceGivesTheSameText()
     {
         var netlist = GoldenDeck.Build().Compile();
@@ -206,6 +227,9 @@ public class SpiceExporterTests
             SpiceExporter.Export(netlist, BaseCatalog.Catalog),
             SpiceExporter.Export(netlist, BaseCatalog.Catalog));
     }
+
+    private static string[] Tokens(Schematic schematic) =>
+        Export(schematic).Split(Separators);
 
     private static string Export(Schematic schematic) =>
         SpiceExporter.Export(schematic.Compile(), BaseCatalog.Catalog);

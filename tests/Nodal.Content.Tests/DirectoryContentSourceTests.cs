@@ -1,4 +1,7 @@
+using Nodal.Content.Components;
+using Nodal.Content.Diagnostics;
 using Nodal.Content.Sources;
+using Nodal.Content.Symbols;
 using Xunit;
 
 namespace Nodal.Content.Tests;
@@ -29,11 +32,62 @@ public class DirectoryContentSourceTests
     }
 
     [Fact]
-    public void MissingDirectoryIsAFailure()
+    public void AMissingDirectoryIsReportedAsADiagnosticInsteadOfThrowing()
     {
-        var source = new DirectoryContentSource(Path.Combine(Path.GetTempPath(), "nodal-absent-" + Guid.NewGuid()));
+        var path = Path.Combine(Path.GetTempPath(), "nodal-absent-" + Guid.NewGuid());
+        var source = new DirectoryContentSource(path);
 
-        Assert.Throws<DirectoryNotFoundException>(() => source.ReadAll().ToArray());
+        Assert.Empty(source.ReadAll().ToArray());
+
+        var diagnostic = Assert.Single(source.Diagnostics);
+
+        Assert.Equal(ContentDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.StartsWith(
+            $"Could not read content file {path}: ", diagnostic.Message, StringComparison.Ordinal);
+        Assert.EndsWith(".", diagnostic.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("..", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AMissingDirectoryReachesTheComponentCatalogAsADiagnostic()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "nodal-absent-" + Guid.NewGuid());
+        var result = ComponentCatalogLoader.Load(new DirectoryContentSource(path));
+
+        Assert.Empty(result.Catalog.Definitions);
+
+        var diagnostic = Assert.Single(result.Diagnostics);
+
+        Assert.Equal(ContentDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Contains("Could not read content file", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AMissingDirectoryReachesTheSymbolLibraryAsADiagnostic()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "nodal-absent-" + Guid.NewGuid());
+
+        var result = SymbolLibraryLoader.Load(
+            new DirectoryContentSource(path), ComponentCatalog.Empty);
+
+        Assert.Equal(0, result.Library.Count);
+        Assert.Contains(
+            result.Diagnostics,
+            diagnostic => diagnostic.Message.StartsWith(
+                "Could not read content file", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AReadableDirectoryReportsNoDiagnostic()
+    {
+        using var directory = new TemporaryDirectory();
+
+        directory.Write("only.json", "{}");
+
+        var source = new DirectoryContentSource(directory.Path);
+
+        Assert.Single(source.ReadAll().ToArray());
+        Assert.Empty(source.Diagnostics);
     }
 
     [Theory]

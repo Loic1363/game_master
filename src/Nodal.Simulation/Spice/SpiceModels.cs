@@ -15,6 +15,9 @@ internal static class SpiceModels
         _ => null,
     };
 
+    public static string SwitchNameOf(Primitive primitive) =>
+        SpiceFormat.SwitchModelPrefix + primitive.Designator;
+
     public static ImmutableArray<string> LinesFor(ElaboratedCircuit circuit)
     {
         var kinds = circuit.Primitives.Select(primitive => primitive.Kind).ToHashSet();
@@ -23,7 +26,27 @@ internal static class SpiceModels
         [
             .. Declarations().Where(declaration => kinds.Contains(declaration.Kind))
                 .Select(declaration => declaration.Line),
+            .. circuit.Primitives.Where(IsSwitch).Select(SwitchLine),
         ];
+    }
+
+    private static bool IsSwitch(Primitive primitive) =>
+        primitive.Kind is PrimitiveKind.Switch or PrimitiveKind.PushButton
+        && primitive.Switch is not null;
+
+    private static string SwitchLine(Primitive primitive)
+    {
+        var settings = primitive.Switch!;
+        var threshold = primitive.Kind == PrimitiveKind.PushButton
+            ? SpiceSchedules.Threshold
+            : settings.Threshold;
+
+        var hysteresis = primitive.Kind == PrimitiveKind.PushButton ? 0 : settings.Hysteresis;
+
+        return $".model {SwitchNameOf(primitive)} SW(VT={SpiceFormat.Value(threshold)} "
+            + $"VH={SpiceFormat.Value(hysteresis)} "
+            + $"RON={SpiceFormat.Value(settings.OnResistance)} "
+            + $"ROFF={SpiceFormat.Value(settings.OffResistance)})";
     }
 
     private static IEnumerable<(PrimitiveKind Kind, string Line)> Declarations()

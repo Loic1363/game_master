@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "generator": "ngspice-47",
+  "nodeVoltages": {
+    "0": 0,
+    "N1": 1,
+    "N2": 2
+  },
+  "elementCurrents": {
+    "V1": 0,
+    "G1": -0.001,
+    "R1": 0.001
+  }
+}

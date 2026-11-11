@@ -5,6 +5,7 @@ using Nodal.Circuit.Schematics;
 using Nodal.Content.Components;
 using Nodal.Foundation.Geometry;
 using Nodal.Foundation.Quantities;
+using Nodal.Foundation.Schedules;
 using Nodal.Foundation.Waveforms;
 
 namespace Nodal.Editor.Tests;
@@ -56,6 +57,19 @@ internal static class Sessions
         return Succeed(
             new SetParameter(
                 component.Id, parameter.Name, ParameterValue.Of(waveform, parameter.Unit)),
+            schematic);
+    }
+
+    public static Schematic Presses(
+        this Schematic schematic, string designator, PressSchedule presses)
+    {
+        var component = ComponentOf(schematic, designator);
+        var parameter = ParameterOf(
+            component, candidate => candidate.Kind == ParameterKind.Schedule);
+
+        return Succeed(
+            new SetParameter(
+                component.Id, parameter.Name, ParameterValue.Of(presses, parameter.Unit)),
             schematic);
     }
 

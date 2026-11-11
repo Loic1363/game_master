@@ -49,7 +49,8 @@ internal static class DcStrategies
 
             if (!attempt.Converged)
             {
-                return DcAttempt.Failed(state, attempt.Iterations);
+                return DcAttempt.Failed(
+                    state, attempt.Iterations, attempt.UnstableSwitch);
             }
 
             state = attempt.DeviceState;
@@ -106,7 +107,8 @@ internal static class DcStrategies
 
             if (step < MinimumSourceStep)
             {
-                return DcAttempt.Failed(state, attempt.Iterations);
+                return DcAttempt.Failed(
+                    state, attempt.Iterations, attempt.UnstableSwitch);
             }
         }
 

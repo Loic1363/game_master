@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "id": "ccvs",
+  "name": "Current-controlled voltage source",
+  "description": "Ideal source whose output voltage is its transresistance times the current entering control-plus.",
+  "category": "source",
+  "designatorPrefix": "H",
+  "pins": [
+    { "name": "plus", "x": 0, "y": -2 },
+    { "name": "minus", "x": 0, "y": 2 },
+    { "name": "control-plus", "x": -2, "y": -1 },
+    { "name": "control-minus", "x": -2, "y": 1 }
+  ],
+  "parameters": [
+    { "name": "transresistance", "label": "Transresistance", "tier": "basic", "unit": "ohm", "default": "1k" }
+  ]
+}

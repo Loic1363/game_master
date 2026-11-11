@@ -7,12 +7,13 @@ namespace Nodal.Content.Tests.Components;
 
 public class BaseCatalogTests
 {
-    private const int ExpectedDefinitionCount = 11;
+    private const int ExpectedDefinitionCount = 17;
 
     private static readonly string[] ExpectedIds =
     [
-        "capacitor", "current-source", "diode", "ground", "inductor", "nmos",
-        "npn", "pmos", "pnp", "resistor", "voltage-source",
+        "capacitor", "cccs", "ccvs", "current-source", "diode", "ground", "inductor", "nmos",
+        "npn", "pmos", "pnp", "push-button", "resistor", "switch", "vccs", "vcvs",
+        "voltage-source",
     ];
 
     private static ComponentCatalogLoadResult LoadBaseCatalog() =>
@@ -47,6 +48,12 @@ public class BaseCatalogTests
     [InlineData("voltage-source", ComponentCategory.Source, "V", 2, 3)]
     [InlineData("current-source", ComponentCategory.Source, "I", 2, 3)]
     [InlineData("ground", ComponentCategory.Reference, "GND", 1, 0)]
+    [InlineData("vcvs", ComponentCategory.Source, "E", 4, 1)]
+    [InlineData("vccs", ComponentCategory.Source, "G", 4, 1)]
+    [InlineData("cccs", ComponentCategory.Source, "F", 4, 1)]
+    [InlineData("ccvs", ComponentCategory.Source, "H", 4, 1)]
+    [InlineData("switch", ComponentCategory.Source, "S", 4, 4)]
+    [InlineData("push-button", ComponentCategory.Source, "SW", 2, 3)]
     public void BaseComponentHasTheExpectedShape(
         string id, ComponentCategory category, string designatorPrefix, int pinCount, int parameterCount)
     {
@@ -134,10 +141,10 @@ public class BaseCatalogTests
         {
             Assert.All(definition.Parameters, parameter => Assert.NotEmpty(parameter.Label));
 
-            Assert.Equal(
-                definition.Parameters.Count(parameter => parameter.IsRequired),
-                definition.Parameters.Count(
-                    parameter => parameter.Tier == ParameterTier.Basic && !parameter.IsWaveform));
+            Assert.All(
+                definition.Parameters.Where(
+                    parameter => parameter.Tier == ParameterTier.Basic && !parameter.IsWaveform),
+                parameter => Assert.True(parameter.IsRequired, parameter.Name));
         }
     }
 

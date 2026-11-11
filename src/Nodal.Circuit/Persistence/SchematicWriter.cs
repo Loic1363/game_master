@@ -178,6 +178,14 @@ internal static class SchematicWriter
             return;
         }
 
+        if (value.TryGetSchedule(out var schedule))
+        {
+            writer.WritePropertyName(name);
+            ScheduleJson.Write(writer, schedule);
+
+            return;
+        }
+
         writer.WriteNumber(name, value.Quantity.Value);
     }
 

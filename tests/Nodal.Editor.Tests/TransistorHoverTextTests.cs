@@ -51,6 +51,30 @@ public class TransistorHoverTextTests
             Describe(BiasBox("pnp", 5, 5 - 0.65), "Q1"));
     }
 
+    [Theory]
+    [InlineData("npn", 5, 0.65, DeviceRegionText.ForwardActive, true)]
+    [InlineData("npn", 0.1, 0.7, DeviceRegionText.Saturation, true)]
+    [InlineData("npn", -0.65, 0, DeviceRegionText.ReverseActive, false)]
+    [InlineData("npn", 5, 0, DeviceRegionText.Cutoff, false)]
+    [InlineData("pnp", 5, 0.65, DeviceRegionText.ForwardActive, true)]
+    [InlineData("pnp", 0.1, 0.7, DeviceRegionText.Saturation, true)]
+    [InlineData("pnp", -0.65, 0, DeviceRegionText.ReverseActive, false)]
+    [InlineData("pnp", 5, 0, DeviceRegionText.Cutoff, false)]
+    public void BetaAppearsInTheHoverTextOnlyInForwardActiveAndSaturation(
+        string definitionId,
+        double supply,
+        double npnBaseDrive,
+        string region,
+        bool showsBeta)
+    {
+        var text = Describe(
+            BiasBox(definitionId, supply, Mirrored(definitionId, supply, npnBaseDrive)), "Q1");
+
+        Assert.NotNull(text);
+        Assert.Contains($": {region},", text, StringComparison.Ordinal);
+        Assert.Equal(showsBeta, text.Contains("β", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void ATwoTerminalComponentKeepsItsOldHoverText()
     {
@@ -65,6 +89,10 @@ public class TransistorHoverTextTests
 
         Assert.Equal("R1: 10 V, 10 mA, 100 mW absorbed", Describe(schematic, "R1"));
     }
+
+    private static double Mirrored(
+        string definitionId, double supply, double npnBaseDrive) =>
+        definitionId == "pnp" ? supply - npnBaseDrive : npnBaseDrive;
 
     private static Schematic BiasBox(string definitionId, double supply, double control) =>
         Schematic.Empty

@@ -165,7 +165,7 @@ public class MultiTerminalResultTests
     }
 
     [Fact]
-    public void ACutoffBipolarWithABiasedCollectorStillLeaksAboveThePicoampThreshold()
+    public void ACutoffBipolarReportsNoBetaEvenWhenItLeaksAboveThePicoampThreshold()
     {
         var component = TransistorCircuits.BiasBox(Circuits.Npn, 5, 0).Solve().Of("Q1");
         var device = component.Device;
@@ -176,7 +176,38 @@ public class MultiTerminalResultTests
             Math.Abs(component.Pins.Single(pin => pin.Name == "base").Current.Value) > 1e-12,
             "The junction gmin keeps the base current above the reporting threshold.");
 
-        Assert.Contains("β", device.Quantities.Select(quantity => quantity.Name));
+        Assert.DoesNotContain(
+            DeviceQuantityNames.CurrentGain,
+            device.Quantities.Select(quantity => quantity.Name));
+    }
+
+    [Theory]
+    [InlineData(Circuits.Npn, 5, 0.65, DeviceRegion.ForwardActive, true)]
+    [InlineData(Circuits.Npn, 0.1, 0.7, DeviceRegion.Saturation, true)]
+    [InlineData(Circuits.Npn, -0.65, 0, DeviceRegion.ReverseActive, false)]
+    [InlineData(Circuits.Npn, 5, 0, DeviceRegion.Cutoff, false)]
+    [InlineData(Circuits.Pnp, 5, 0.65, DeviceRegion.ForwardActive, true)]
+    [InlineData(Circuits.Pnp, 0.1, 0.7, DeviceRegion.Saturation, true)]
+    [InlineData(Circuits.Pnp, -0.65, 0, DeviceRegion.ReverseActive, false)]
+    [InlineData(Circuits.Pnp, 5, 0, DeviceRegion.Cutoff, false)]
+    public void BetaIsReportedOnlyInForwardActiveAndSaturation(
+        string definitionId,
+        double supply,
+        double npnBaseDrive,
+        DeviceRegion region,
+        bool reportsBeta)
+    {
+        var device = TransistorCircuits
+            .BipolarRegionBox(definitionId, supply, npnBaseDrive)
+            .Solve()
+            .Of("Q1")
+            .Device;
+
+        Assert.NotNull(device);
+        Assert.Equal(region, device.Region);
+        Assert.Equal(
+            reportsBeta,
+            device.Quantities.Any(quantity => quantity.Name == DeviceQuantityNames.CurrentGain));
     }
 
     [Theory]

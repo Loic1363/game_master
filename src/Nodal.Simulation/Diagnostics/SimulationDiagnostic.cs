@@ -93,6 +93,23 @@ public sealed record SimulationDiagnostic(
             [],
             []);
 
+    public static SimulationDiagnostic SwitchKeepsChangingState(
+        ComponentId id, string designator) =>
+        new(SimulationSeverity.Error,
+            SimulationDiagnosticCode.SwitchInstability,
+            $"No stable operating point: switch {designator} keeps changing state.",
+            [id],
+            []);
+
+    public static SimulationDiagnostic SampleLimit(double time) =>
+        new(SimulationSeverity.Error,
+            SimulationDiagnosticCode.SampleLimit,
+            $"The transient analysis stopped at {new Quantity(time, Unit.Second)}: the result "
+            + "reached the memory limit of 50 million samples. Shorten the stop time or increase "
+            + "the output step.",
+            [],
+            []);
+
     public static SimulationDiagnostic UnsupportedWaveformFeature(
         ComponentId id, string designator, string feature) =>
         new(SimulationSeverity.Error,

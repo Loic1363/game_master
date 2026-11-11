@@ -46,7 +46,7 @@ internal static class VoltageBranchCycles
         ImmutableArray<BranchEdge> found, ImmutableArray<string> netNames)
     {
         var cycle = found.Sort((left, right) => left.Element.Id.CompareTo(right.Element.Id));
-        var designators = Listed(cycle.Select(edge => edge.Element.Designator));
+        var designators = NamedList.Of(cycle.Select(edge => edge.Element.Designator));
         var noun = NounFor(cycle);
         var nets = cycle
             .SelectMany(edge => new[] { edge.First, edge.Second })
@@ -56,7 +56,7 @@ internal static class VoltageBranchCycles
             .ToImmutableArray();
 
         var description = IsParallel(cycle)
-            ? $"{designators} are {noun} in parallel across nets {Listed(nets)}."
+            ? $"{designators} are {noun} in parallel across nets {NamedList.Of(nets)}."
             : $"{designators} form a loop of {noun}.";
 
         return new SingularCause(
@@ -81,6 +81,7 @@ internal static class VoltageBranchCycles
         {
             PrimitiveKind.VoltageSource => "ideal voltage sources",
             PrimitiveKind.Inductor => "ideal inductors",
+            PrimitiveKind.Vcvs or PrimitiveKind.Ccvs => "controlled voltage sources",
             _ => "zero-resistance branches",
         };
     }
@@ -132,15 +133,6 @@ internal static class VoltageBranchCycles
         path.Reverse();
 
         return path;
-    }
-
-    private static string Listed(IEnumerable<string> names)
-    {
-        var all = names.ToArray();
-
-        return all.Length <= 1
-            ? string.Concat(all)
-            : string.Join(", ", all[..^1]) + " and " + all[^1];
     }
 
     private sealed record BranchEdge(DcElement Element, int First, int Second)

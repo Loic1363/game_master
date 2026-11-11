@@ -12,13 +12,6 @@ public class ReferenceTests
     private const double CurrentTolerance = 1e-12;
     private const double PowerTolerance = 1e-12;
 
-    private static readonly DcOptions Tight = new()
-    {
-        RelTol = 1e-9,
-        VnTol = 1e-12,
-        AbsTol = 1e-15,
-    };
-
     public static TheoryData<string> Circuits => ReferenceCircuits.Names();
 
     [Theory]
@@ -170,10 +163,7 @@ public class ReferenceTests
         }
     }
 
-    private static OperatingPoint Solve(string name) => DcAnalysis.Solve(
-        NetlistCompiler.Compile(ReferenceCircuits.Schematic(name), BaseCatalog.Catalog),
-        BaseCatalog.Catalog,
-        Tight);
+    private static OperatingPoint Solve(string name) => ReferenceCircuits.Solve(name);
 
     private static void Agrees(double expected, double actual, double absolute, string what)
     {

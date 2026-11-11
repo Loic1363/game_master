@@ -1,5 +1,6 @@
 using Nodal.Circuit.Netlists;
 using Nodal.Content.Components;
+using Nodal.Foundation.Schedules;
 using Nodal.Foundation.Waveforms;
 
 namespace Nodal.Simulation.Elaboration;
@@ -14,10 +15,7 @@ internal static class ParameterValues
             return value;
         }
 
-        var declared = definition.Parameters.FirstOrDefault(
-            parameter => string.Equals(parameter.Name, parameterName, StringComparison.Ordinal));
-
-        return declared?.Default?.Value ?? 0;
+        return Declared(definition, parameterName)?.DefaultQuantity?.Value ?? 0;
     }
 
     public static double? Optional(NetlistElement element, string parameterName) =>
@@ -35,4 +33,26 @@ internal static class ParameterValues
         && waveform.IsValid
             ? waveform
             : null;
+
+    public static PressSchedule Schedule(
+        NetlistElement element, ComponentDefinition definition, string parameterName)
+    {
+        if (element.Parameters.TryGetValue(parameterName, out var value)
+            && value.TryGetSchedule(out var schedule)
+            && schedule.IsValid)
+        {
+            return schedule;
+        }
+
+        return Declared(definition, parameterName)?.Default is { } fallback
+            && fallback.TryGetSchedule(out var declared)
+            && declared.IsValid
+                ? declared
+                : PressSchedule.Released;
+    }
+
+    private static ParameterDefinition? Declared(
+        ComponentDefinition definition, string parameterName) =>
+        definition.Parameters.FirstOrDefault(
+            parameter => string.Equals(parameter.Name, parameterName, StringComparison.Ordinal));
 }

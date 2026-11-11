@@ -4,6 +4,8 @@ namespace Nodal.Simulation.Transient;
 
 public sealed record TransientOptions
 {
+    public const long DefaultMaxSamples = 50_000_000;
+
     public TransientOptions(double stopTime)
     {
         if (!double.IsFinite(stopTime) || stopTime <= 0)
@@ -55,4 +57,6 @@ public sealed record TransientOptions
     public double Gmin { get; init; } = 1e-12;
 
     public bool StartFromZero { get; init; }
+
+    public long MaxSamples { get; init; } = DefaultMaxSamples;
 }

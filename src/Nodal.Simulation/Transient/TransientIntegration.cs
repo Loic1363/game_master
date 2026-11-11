@@ -9,4 +9,6 @@ internal readonly record struct TransientIntegration(int Order, double Step)
     public double LeadingCoefficient => Order / Step;
 
     public double PreviousFlowWeight => Order - 1;
+
+    public double Midpoint(double target) => target - (Step / 2);
 }

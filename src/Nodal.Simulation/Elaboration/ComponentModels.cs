@@ -17,6 +17,10 @@ internal static class ComponentModels
     public const string CollectorPin = "collector";
     public const string BasePin = "base";
     public const string EmitterPin = "emitter";
+    public const string ControlPlusPin = "control-plus";
+    public const string ControlMinusPin = "control-minus";
+    public const string FirstContactPin = "a";
+    public const string SecondContactPin = "b";
 
     private static readonly Dictionary<string, ComponentKind> KindByDefinitionId =
         new(StringComparer.Ordinal)
@@ -32,6 +36,12 @@ internal static class ComponentModels
             ["pmos"] = ComponentKind.Pmos,
             ["npn"] = ComponentKind.Npn,
             ["pnp"] = ComponentKind.Pnp,
+            ["vcvs"] = ComponentKind.Vcvs,
+            ["vccs"] = ComponentKind.Vccs,
+            ["cccs"] = ComponentKind.Cccs,
+            ["ccvs"] = ComponentKind.Ccvs,
+            ["switch"] = ComponentKind.Switch,
+            ["push-button"] = ComponentKind.PushButton,
         };
 
     public static bool TryGetKind(string definitionId, out ComponentKind kind) =>
@@ -44,6 +54,9 @@ internal static class ComponentModels
         ComponentKind.Ground => [],
         ComponentKind.Nmos or ComponentKind.Pmos => [DrainPin, SourcePin, GatePin],
         ComponentKind.Npn or ComponentKind.Pnp => [CollectorPin, EmitterPin, BasePin],
+        ComponentKind.PushButton => [FirstContactPin, SecondContactPin],
+        _ when IsControlledSource(kind) || kind == ComponentKind.Switch =>
+            [PlusPin, MinusPin, ControlPlusPin, ControlMinusPin],
         _ => [FirstPassivePin, SecondPassivePin],
     };
 
@@ -51,11 +64,30 @@ internal static class ComponentModels
         kind is ComponentKind.Nmos or ComponentKind.Pmos
             or ComponentKind.Npn or ComponentKind.Pnp;
 
+    public static bool IsControlledSource(ComponentKind kind) =>
+        kind is ComponentKind.Vcvs or ComponentKind.Vccs
+            or ComponentKind.Cccs or ComponentKind.Ccvs;
+
+    public static bool IsCurrentControlled(ComponentKind kind) =>
+        kind is ComponentKind.Cccs or ComponentKind.Ccvs;
+
+    public static bool IsSwitch(ComponentKind kind) =>
+        kind is ComponentKind.Switch or ComponentKind.PushButton;
+
+    public static bool ReportsItsPinCurrents(ComponentKind kind) =>
+        IsTransistor(kind) || IsControlledSource(kind) || kind == ComponentKind.Switch;
+
     public static PrimitiveKind PrimitiveOf(ComponentKind kind) => kind switch
     {
         ComponentKind.Nmos => PrimitiveKind.Nmos,
         ComponentKind.Pmos => PrimitiveKind.Pmos,
         ComponentKind.Npn => PrimitiveKind.Npn,
+        ComponentKind.Vcvs => PrimitiveKind.Vcvs,
+        ComponentKind.Vccs => PrimitiveKind.Vccs,
+        ComponentKind.Cccs => PrimitiveKind.Cccs,
+        ComponentKind.Ccvs => PrimitiveKind.Ccvs,
+        ComponentKind.Switch => PrimitiveKind.Switch,
+        ComponentKind.PushButton => PrimitiveKind.PushButton,
         _ => PrimitiveKind.Pnp,
     };
 

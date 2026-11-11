@@ -11,4 +11,5 @@ public enum Unit
     Second,
     Hertz,
     Watt,
+    Siemens,
 }

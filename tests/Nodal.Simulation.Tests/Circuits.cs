@@ -5,6 +5,7 @@ using Nodal.Circuit.Netlists;
 using Nodal.Circuit.Schematics;
 using Nodal.Content.Components;
 using Nodal.Foundation.Quantities;
+using Nodal.Foundation.Schedules;
 using Nodal.Foundation.Waveforms;
 using Nodal.Simulation.Dc;
 using Nodal.Simulation.Elaboration;
@@ -67,6 +68,20 @@ internal static class Circuits
         return Succeed(
             new SetParameter(
                 component.Id, parameter.Name, ParameterValue.Of(waveform, parameter.Unit)),
+            schematic);
+    }
+
+    public static Schematic Presses(
+        this Schematic schematic, string designator, PressSchedule presses)
+    {
+        var component = ComponentOf(schematic, designator);
+        var definition = DefinitionOf(component);
+        var parameter = definition.Parameters.First(
+            candidate => candidate.Kind == ParameterKind.Schedule);
+
+        return Succeed(
+            new SetParameter(
+                component.Id, parameter.Name, ParameterValue.Of(presses, parameter.Unit)),
             schematic);
     }
 

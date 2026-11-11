@@ -38,7 +38,8 @@ internal sealed class TransientStepper
         _system = new TransientSystem(circuit, _storage, options);
         _newton = new TransientNewton(_system, options);
         _breakpoints = TransientBreakpoints.Of(circuit, _plan);
-        _recorder = new TransientRecorder(circuit, UndefinedNets(circuit, _system));
+        _recorder = new TransientRecorder(
+            circuit, UndefinedNets(circuit, _system), options.MaxSamples);
     }
 
     public static TransientResult Run(
@@ -67,7 +68,17 @@ internal sealed class TransientStepper
 
         var state = InitialState(start);
 
-        _recorder.Add(0, start.NodeVoltage, start.CurrentOf, start.PinCurrentsOf);
+        _recorder.Add(
+            0,
+            start.NodeVoltage,
+            start.CurrentOf,
+            start.PinCurrentsAt,
+            index => start.IsClosedAt(index, 0));
+
+        if (_recorder.IsFull)
+        {
+            return OutOfSamples(0);
+        }
 
         var charge = new double[_storage.Count];
         var flow = new double[_storage.Count];
@@ -170,7 +181,14 @@ internal sealed class TransientStepper
                 net => _system.Unknowns.NodeVoltage(net, solution),
                 index => _system.CurrentOf(
                     index, solution, solve.DeviceState, target, integration, previous),
-                index => _system.PinCurrentsOf(index, solve.DeviceState));
+                index => _system.PinCurrentsOf(
+                    index, solution, solve.DeviceState, target, integration, previous),
+                index => _system.IsClosed(index, solve.DeviceState, target));
+
+            if (_recorder.IsFull)
+            {
+                return OutOfSamples(time);
+            }
 
             state = new TransientState(across, through, solve.DeviceState);
 
@@ -259,9 +277,15 @@ internal sealed class TransientStepper
     }
 
     private TransientResult Failed(double time) =>
+        Stopped(SimulationDiagnostic.TimestepTooSmall(time), time);
+
+    private TransientResult OutOfSamples(double time) =>
+        Stopped(SimulationDiagnostic.SampleLimit(time), time);
+
+    private TransientResult Stopped(SimulationDiagnostic cause, double time) =>
         _recorder.ToPartial(
             [
-                SimulationDiagnostic.TimestepTooSmall(time),
+                cause,
                 .. UndefinedNets(_circuit, _system).Select(SimulationDiagnostic.NoDcPath),
             ],
             new TransientStatistics(_accepted, _rejected, _iterations),

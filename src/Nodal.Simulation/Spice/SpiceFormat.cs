@@ -9,6 +9,9 @@ internal static class SpiceFormat
     public const string EsrSuffix = "_esr";
     public const string EslSuffix = "_esl";
     public const string ParallelSuffix = "_par";
+    public const string SenseSuffix = "_sense";
+    public const string ControlSuffix = "_ctrl";
+    public const string SwitchModelPrefix = "NODAL_SW_";
     public const string DiodeModelName = "NODAL_D";
     public const string NmosModelName = "NODAL_NMOS";
     public const string PmosModelName = "NODAL_PMOS";
@@ -20,6 +23,7 @@ internal static class SpiceFormat
     public const string EndLine = ".end";
     public const string TitlePrefix = "* ";
     public const string TitleSuffix = " export";
+    public const string ZeroText = "0";
 
     private const string MosfetParameters =
         "LEVEL=1 KP=1e-3 LAMBDA=0.02 GAMMA=0 PHI=0.6 IS=1e-14 TOX=0 "
@@ -44,7 +48,7 @@ internal static class SpiceFormat
         ".model " + PnpModelName + " PNP(" + BipolarParameters + ")";
 
     public static string Value(double value) =>
-        value.ToString("R", CultureInfo.InvariantCulture);
+        value == 0 ? ZeroText : value.ToString("R", CultureInfo.InvariantCulture);
 
     public static string Count(int value) =>
         value.ToString(CultureInfo.InvariantCulture);

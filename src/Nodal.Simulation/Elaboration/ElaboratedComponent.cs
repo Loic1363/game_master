@@ -18,6 +18,16 @@ public sealed record ElaboratedComponent(
 {
     public bool IsTransistor => ComponentModels.IsTransistor(Kind);
 
+    public bool IsControlledSource => ComponentModels.IsControlledSource(Kind);
+
+    public bool IsVoltageControlledSwitch => Kind == ComponentKind.Switch;
+
+    public bool IsPushButton => Kind == ComponentKind.PushButton;
+
+    public bool HasNonlinearDevice => IsTransistor || IsVoltageControlledSwitch;
+
+    public bool ReportsPinCurrents => ComponentModels.ReportsItsPinCurrents(Kind);
+
     public bool Equals(ElaboratedComponent? other) =>
         other is not null
         && Id == other.Id

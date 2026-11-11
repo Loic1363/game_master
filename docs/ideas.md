@@ -47,3 +47,48 @@ Ideas from the project lead, kept for future game design. Nothing here is a deci
 - Leaving the probe tool (Escape) and hiding the waveform panel (View menu) are not discoverable; the panel needs a visible close button and the probe tool a clearer entry and exit.
 - The P shortcut for probes is not ideal; revisit shortcuts during the design overhaul.
 - Menus with icons.
+
+## Chips: contract and quality
+- A chip is validated as a black box against its expected behavior (truth table or function), whatever its construction.
+- Once valid, continuous metrics are optimized: cost, propagation delay, power, later noise margins and fan-out, shown as Zachtronics-style histograms.
+- Metrics roll up the hierarchy: a NAND used 200 times in an ALU counts 200 times in the ALU's metrics.
+- A chip can have a version 2 that replaces version 1 everywhere when its contract is identical.
+- Start small, grow, and come back to optimize the small chips when the large circuits demand it.
+
+## Lab notebook (endgame, unlockable)
+- Per-project notes with formatted equations.
+- Live calculation with units inside the notes: `5 V / 4k7` gives 1.06 mA; `4k7 * 100n` gives 470 µs.
+- Plot an expression next to a simulation result.
+- An engineering calculator.
+- Keep it simple: these are advanced options.
+
+## In-game code editor
+- Pillar 6: assembly is written inside the game, with a debugger and a register view. Never an external tool to install.
+
+## AI and challenges
+- AI is not forbidden, but challenges favor information that must be earned: in troubleshooting, the fault is invisible until measured, so a screenshot is not enough for an AI.
+- Scores are measured inside the simulation.
+
+## Score validation
+- Shared scores are validated by re-simulation, never by trusting the file.
+
+## File size
+- Transparent compression of .nodal files for large circuits. JSON stays the format (ADR-0017); LTspice and KiCad also use text formats.
+
+## Playtesting
+- First, the project lead's engineer friends with varied profiles (digital, telecom, power): watch them play without explaining, and test early.
+- Later, curious non-engineers, to validate the low floor.
+
+## Player security
+- See ADR-0023. Dedicated ADRs and a security review are mandatory before file sharing, mods, external PWL files and any online service.
+- Prefer Steam Workshop; never direct connections between players.
+- The game is single-player. The community shares circuits and faults; a leaderboard is possible later, but it is not a competitive game.
+
+## Engine backlog (from task reports)
+- Transistor capacitances, needed for realistic propagation delays before chips.
+- A genuinely hard DC operating point to exercise gmin and source stepping; the CMOS latch converges by plain Newton–Raphson to its symmetric state.
+- Choosing which pin a current probe measures; the probe model is ready and the file format needs no change.
+- A four-terminal MOSFET, which would make the body diode and the body effect meaningful.
+
+## Live interaction
+- Pressing a push button or turning a potentiometer while the circuit runs needs a real-time simulation mode. Until then the push button follows a press schedule set before the run (ADR-0024).

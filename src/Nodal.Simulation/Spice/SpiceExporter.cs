@@ -98,7 +98,10 @@ public static class SpiceExporter
 
         foreach (var primitive in circuit.Primitives)
         {
-            Append(text, SpiceElements.Of(primitive));
+            foreach (var line in SpiceElements.LinesOf(primitive))
+            {
+                Append(text, line);
+            }
         }
 
         foreach (var model in SpiceModels.LinesFor(circuit))

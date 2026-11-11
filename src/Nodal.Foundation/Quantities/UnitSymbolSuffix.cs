@@ -14,6 +14,7 @@ internal static class UnitSymbolSuffix
         ("A", Unit.Ampere, StringComparison.Ordinal),
         ("s", Unit.Second, StringComparison.Ordinal),
         ("W", Unit.Watt, StringComparison.Ordinal),
+        ("S", Unit.Siemens, StringComparison.Ordinal),
     ];
 
     public static bool TryMatch(string text, out Unit unit, out int length)
